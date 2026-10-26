@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#172554">
+<title>共テクエスト - 勉強して育てるゲーム</title>
+<style>
+:root{--bg:#0b1224;--panel:#151f38;--panel2:#1e2c4b;--line:#334466;--text:#f3f6ff;--muted:#aab7d3;--gold:#ffd166;--blue:#75c9ff;--green:#72e0ae;--pink:#ff91c8}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#20345b 0,#0b1224 65%);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;min-height:100vh}
+header{padding:22px 16px 14px;text-align:center}h1{margin:0;font-size:clamp(26px,5vw,38px);letter-spacing:.04em}header p{margin:7px 0 0;color:var(--muted);font-size:14px}
+.wrap{max-width:980px;margin:auto;padding:0 12px 40px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:10px 0 14px}.stat,.card{background:linear-gradient(145deg,var(--panel),#111a30);border:1px solid var(--line);border-radius:16px;padding:13px;box-shadow:0 8px 22px #0002}.stat span{display:block;color:var(--muted);font-size:12px}.stat strong{display:block;font-size:clamp(18px,4vw,25px);margin-top:3px}.coin{color:var(--gold)}.level{color:var(--blue)}
+.tabs{display:flex;gap:7px;overflow-x:auto;padding:3px 0 12px}.tab{border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:10px 14px;border-radius:12px;white-space:nowrap;font-weight:700;cursor:pointer}.tab.active{background:#29436d;color:#fff;border-color:#75a8ff}
+.page{display:none}.page.active{display:block}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card h2{font-size:18px;margin:0 0 10px}.card p{color:var(--muted);font-size:14px;line-height:1.6}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>*{flex:1}.field{width:100%;background:#0b1429;color:var(--text);border:1px solid #3d5075;border-radius:10px;padding:11px;font:inherit}.btn{border:0;border-radius:11px;padding:11px 14px;background:#5b8cff;color:#08152b;font-weight:800;font-size:14px;cursor:pointer}.btn:active{transform:scale(.98)}.btn.gold{background:var(--gold)}.btn.green{background:var(--green)}.btn.pink{background:var(--pink)}.btn.secondary{background:#2b3b5c;color:#fff;border:1px solid #43587e}.btn:disabled{opacity:.45;cursor:not-allowed}
+.notice{font-size:12px;color:var(--muted);margin-top:8px}.progress{height:10px;background:#0a1326;border-radius:99px;overflow:hidden;margin:8px 0}.progress div{height:100%;width:0;background:linear-gradient(90deg,#69a9ff,#73e4b4);transition:width .25s}
+.hero{font-size:64px;text-align:center;line-height:1.25}.base{min-height:130px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;background:linear-gradient(#1b3760,#172443);border:1px solid #3c5a82;border-radius:14px;padding:18px}.building{font-size:42px;text-align:center}.building small{display:block;font-size:11px;color:var(--muted)}
+.mission{display:flex;justify-content:space-between;gap:8px;align-items:center;border-bottom:1px solid #2c3a57;padding:10px 0}.mission:last-child{border:0}.mission b{font-size:14px}.mission small{display:block;color:var(--muted);margin-top:3px}
+.items{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.item{background:#0c162c;border:1px solid var(--line);border-radius:12px;padding:10px 5px;text-align:center;min-width:0}.item .emoji{font-size:32px}.item b{display:block;font-size:12px;margin:4px 0}.item small{color:var(--muted);font-size:11px}.rarity-SSR{border-color:#ff91c8;box-shadow:inset 0 0 16px #ff91c81a}.rarity-SR{border-color:#b39bff}.rarity-R{border-color:#75c9ff}.rarity-N{border-color:#52627d}
+.log{max-height:160px;overflow:auto;color:var(--muted);font-size:13px;line-height:1.7}.log div{border-bottom:1px solid #25334f;padding:4px 0}
+footer{text-align:center;color:#8292b3;font-size:12px;margin-top:18px}
+@media(max-width:620px){.grid{grid-template-columns:1fr}.stats{gap:6px}.stat{padding:10px 8px}.items{grid-template-columns:repeat(3,minmax(0,1fr))}.tab{padding:9px 12px}.wrap{padding-left:10px;padding-right:10px}}
+</style>
+</head>
+<body>
+<header><h1>⚔️ 共テクエスト</h1><p>勉強してコインを集め、ガチャ・拠点づくり・コレクションを楽しもう！</p></header>
+<main class="wrap">
+<section class="stats">
+ <div class="stat"><span>🪙 所持コイン</span><strong class="coin" id="coins">0</strong></div>
+ <div class="stat"><span>⭐ プレイヤーLv.</span><strong class="level" id="level">1</strong></div>
+ <div class="stat"><span>📚 累計勉強時間</span><strong id="total">0分</strong></div>
+</section>
+<div class="tabs">
+ <button class="tab active" data-page="study">📚 勉強</button><button class="tab" data-page="gacha">🎁 ガチャ</button><button class="tab" data-page="base">🏡 拠点</button><button class="tab" data-page="collection">📖 図鑑</button><button class="tab" data-page="missions">🎯 ミッション</button>
+</div>
+<section id="study" class="page active">
+ <div class="grid">
+  <div class="card"><h2>⏱️ 勉強を記録</h2><p>勉強した時間を記録して報酬を受け取ろう。勉強が終わったら入力してね。</p>
+   <label for="subject">教科</label><select id="subject" class="field"><option>英語</option><option>数学</option><option>国語</option><option>化学</option><option>物理</option><option>情報</option><option>地理・公民</option><option>その他</option></select>
+   <label for="minutes">勉強した時間（分）</label><input id="minutes" class="field" type="number" min="1" max="600" value="25">
+   <label for="memo">内容メモ（任意）</label><input id="memo" class="field" maxlength="70" placeholder="例：ターゲット1400を50語復習">
+   <div class="row" style="margin-top:10px"><button class="btn green" id="record">勉強完了！報酬を受け取る</button></div>
+   <div class="notice">目安：10分につき10コイン。1回の報酬は最大300コイン。自分の学習記録として使う仕組みです。</div>
+  </div>
+  <div class="card"><h2>📈 今日の進み具合</h2><p id="todayText">今日も一歩ずつ進もう！</p><div class="progress"><div id="todayBar"></div></div><b id="todayProgress">0 / 60分</b><p>今日60分勉強するとデイリーボーナス！</p><div class="base"><div><div class="hero">🧙‍♂️</div><b>冒険者のギルド</b><div class="notice">勉強の成果が冒険者の力になる！</div></div></div>
+  </div>
+ </div>
+ <div class="card" style="margin-top:12px"><h2>🗒️ 最近の勉強ログ</h2><div class="log" id="studyLog">まだ記録がありません。</div></div>
+</section>
+<section id="gacha" class="page">
+ <div class="grid">
+  <div class="card"><h2>🎁 冒険者ガチャ</h2><div class="hero">🎰</div><p>1回100コイン。仲間やアイテムを集めよう！</p><button class="btn gold" id="roll">ガチャを1回まわす（100🪙）</button><p class="notice">提供割合：SSR 5% / SR 15% / R 30% / N 50%。結果はゲーム内コレクションに保存されます。</p></div>
+  <div class="card"><h2>✨ ガチャ結果</h2><div id="gachaResult" class="base"><div><div class="hero">❔</div><b>なにが出るかな？</b></div></div><p id="gachaMessage">コインを集めてチャレンジ！</p></div>
+ </div>
+</section>
+<section id="base" class="page">
+ <div class="card"><h2>🏡 自分の拠点</h2><p>勉強で集めたコインを使って施設を育てよう。レベルが上がると見た目も変化！</p><div class="base" id="baseView"></div><div class="progress"><div id="baseBar"></div></div><p id="baseText"></p><button class="btn green" id="upgrade">拠点を強化する</button><p class="notice" id="upgradeNote"></p></div>
+ <div class="card" style="margin-top:12px"><h2>🛠️ 施設一覧</h2><div class="items" id="buildings"></div></div>
+</section>
+<section id="collection" class="page">
+ <div class="card"><h2>📖 コレクション図鑑</h2><p>ガチャで入手した仲間やアイテム。新しいものを集めるとコレクション率が上がる！</p><div class="progress"><div id="collectionBar"></div></div><b id="collectionCount">0 / 0 種類</b><div class="items" id="collectionItems" style="margin-top:12px"></div></div>
+</section>
+<section id="missions" class="page">
+ <div class="card"><h2>🎯 ミッション</h2><p>達成したらボタンを押して報酬を受け取ろう。日替わりミッションは毎日リセットされるよ。</p><div id="missionList"></div><button class="btn secondary" id="claimDaily" style="margin-top:12px">デイリーボーナスを受け取る</button><div class="notice" id="dailyNote"></div></div>
+</section>
+<footer>ゲームデータはこのブラウザ内に自動保存されます。ブラウザのデータを消すとセーブも消える場合があります。</footer>
+</main>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const catalog=[
+ {name:"星読みの魔法使い",emoji:"🧙‍♂️",rarity:"SSR",desc:"星の力を秘めた冒険者"},
+ {name:"蒼炎のドラゴン",emoji:"🐉",rarity:"SSR",desc:"伝説の竜"},
+ {name:"月影の騎士",emoji:"🌙",rarity:"SR",desc:"静かに戦う騎士"},
+ {name:"森の守護者",emoji:"🦌",rarity:"SR",desc:"森を守る仲間"},
+ {name:"旅する錬金術師",emoji:"🧪",rarity:"SR",desc:"不思議な薬を作る"},
+ {name:"青いスライム",emoji:"🫧",rarity:"R",desc:"ぷるぷるの仲間"},
+ {name:"見習い剣士",emoji:"🗡️",rarity:"R",desc:"修行中の剣士"},
+ {name:"小さな妖精",emoji:"🧚",rarity:"R",desc:"幸運を運ぶ妖精"},
+ {name:"薬草セット",emoji:"🌿",rarity:"N",desc:"冒険に役立つ薬草"},
+ {name:"古びた地図",emoji:"🗺️",rarity:"N",desc:"どこかへ続く地図"},
+ {name:"木の剣",emoji:"🪵",rarity:"N",desc:"初心者の装備"},
+ {name:"旅人のパン",emoji:"🍞",rarity:"N",desc:"元気が出るパン"},
+ {name:"幸運の結晶",emoji:"💎",rarity:"SR",desc:"きらめく結晶"},
+ {name:"金色の宝箱",emoji:"🧰",rarity:"SSR",desc:"めったに見つからない宝箱"},
+ {name:"黒猫の相棒",emoji:"🐈‍⬛",rarity:"R",desc:"気まぐれな相棒"},
+ {name:"森の小屋",emoji:"🛖",rarity:"N",desc:"ほっとする休憩場所"},
+ {name:"空飛ぶほうき",emoji:"🧹",rarity:"SR",desc:"空を飛べる不思議な道具"},
+ {name:"虹色の鳥",emoji:"🦜",rarity:"R",desc:"鮮やかな羽の鳥"}
+];
+const buildings=[
+ {name:"テント",emoji:"⛺",cost:0},{name:"図書館",emoji:"📚",cost:150},{name:"工房",emoji:"⚒️",cost:300},{name:"ガチャ塔",emoji:"🗼",cost:600},{name:"空中庭園",emoji:"🌳",cost:1000},{name:"星の城",emoji:"🏰",cost:1800}
+];
+const defaults={coins:0,totalMinutes:0,todayMinutes:0,day:"",level:1,xp:0,baseLevel:1,owned:{},logs:[],claims:{},missionClaims:{},rolls:0};
+let s;
+try{s=Object.assign({},defaults,JSON.parse(localStorage.getItem("kyoteQuestSave")||"{}"));}catch(e){s={...defaults};}
+s.owned=s.owned||{};s.logs=s.logs||[];s.claims=s.claims||{};s.missionClaims=s.missionClaims||{};
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};
+function save(){localStorage.setItem("kyoteQuestSave",JSON.stringify(s));render();}
+function fmt(n){return Math.floor(n).toLocaleString("ja-JP")}
+function addCoins(n){s.coins+=n;s.xp+=Math.max(1,Math.floor(n/10));s.level=1+Math.floor(s.xp/100)}
+function checkDay(){if(s.day!==today()){s.day=today();s.todayMinutes=0;s.claims={};s.missionClaims={};}}
+function render(){
+ checkDay();$("coins").textContent=fmt(s.coins);$("level").textContent=s.level;$("total").textContent=fmt(s.totalMinutes)+"分";
+ $("todayText").textContent=s.todayMinutes>=60?"🎉 今日の目標達成！よく頑張った！":"今日 "+s.todayMinutes+" 分勉強したよ。目標まであと "+Math.max(0,60-s.todayMinutes)+" 分！";
+ $("todayProgress").textContent=Math.min(s.todayMinutes,60)+" / 60分";$("todayBar").style.width=Math.min(100,s.todayMinutes/60*100)+"%";
+ $("studyLog").innerHTML=s.logs.length?s.logs.slice(0,12).map(l=>"<div><b>"+esc(l.date)+" · "+esc(l.subject)+" "+l.minutes+"分</b> — "+esc(l.memo||"学習")+" <span style='color:var(--gold)'>+"+l.coins+"🪙</span></div>").join(""):"まだ記録がありません。";
+ const bl=Math.min(s.baseLevel,buildings.length);$("baseView").innerHTML=buildings.slice(0,bl).map(b=>'<div class="building">'+b.emoji+'<small>'+b.name+'</small></div>').join("")+'<div class="building">✨<small>Lv.'+s.baseLevel+'</small></div>';
+ const next=buildings[s.baseLevel];const cost=next?next.cost:999999;
+ $("baseText").textContent=next?"次の施設："+next.name+"（"+cost+"コイン）":"拠点は最高レベル！すごい！";
+ $("baseBar").style.width=(next?Math.min(100,s.coins/cost*100):100)+"%";
+ $("upgrade").disabled=!next||s.coins<cost;$("upgrade").textContent=next?"拠点を強化する（"+cost+"🪙）":"拠点レベルMAX";$("upgradeNote").textContent=next?(s.coins<cost?"あと "+(cost-s.coins)+" コイン必要だよ。":"強化できるよ！"):"全施設を建設した！";
+ $("buildings").innerHTML=buildings.map((b,i)=>'<div class="item"><div class="emoji">'+b.emoji+'</div><b>'+b.name+'</b><small>'+(i<s.baseLevel?"建設済み":b.cost+"🪙")+'</small></div>').join("");
+ const got=Object.keys(s.owned).filter(k=>s.owned[k]>0).length;$("collectionCount").textContent=got+" / "+catalog.length+" 種類";$("collectionBar").style.width=got/catalog.length*100+"%";
+ $("collectionItems").innerHTML=catalog.map((c,i)=>{let n=s.owned[i]||0;return '<div class="item '+(n?'rarity-'+c.rarity:'')+'"><div class="emoji">'+(n?c.emoji:"❔")+'</div><b>'+(n?c.name:"？？？")+'</b><small>'+(n?(c.rarity+" · 所持 "+n):"未入手")+'</small></div>'}).join("");
+ renderMissions();
+}
+function esc(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function renderMissions(){
+ const ms=[
+  {id:"study20",name:"まずは20分勉強",desc:"今日の勉強時間が20分以上",reward:30,ok:s.todayMinutes>=20},
+  {id:"study60",name:"集中して60分",desc:"今日の勉強時間が60分以上",reward:70,ok:s.todayMinutes>=60},
+  {id:"subjects2",name:"教科を切り替えて挑戦",desc:"今日2教科以上を記録",reward:40,ok:new Set(s.logs.filter(l=>l.date===today()).map(l=>l.subject)).size>=2},
+  {id:"record",name:"学習記録をつけよう",desc:"今日1回以上記録",reward:20,ok:s.logs.some(l=>l.date===today())}
+ ];
+ $("missionList").innerHTML=ms.map(m=>{let claimed=!!s.missionClaims[m.id];return '<div class="mission"><div><b>'+m.name+'</b><small>'+m.desc+' · 報酬 '+m.reward+'🪙</small></div><button class="btn '+(claimed?'secondary':m.ok?'green':'secondary')+'" '+(!m.ok||claimed?'disabled':'')+' data-claim="'+m.id+'">'+(claimed?'受取済み':m.ok?'受け取る':'未達成')+'</button></div>'}).join("");
+ document.querySelectorAll("[data-claim]").forEach(b=>b.onclick=()=>{let m=ms.find(x=>x.id===b.dataset.claim);if(m&&!s.missionClaims[m.id]&&m.ok){s.missionClaims[m.id]=true;s.coins+=m.reward;s.xp+=5;s.level=1+Math.floor(s.xp/100);save();}});
+ const daily=s.todayMinutes>=60&&!s.claims.daily;$("claimDaily").disabled=!daily;$("dailyNote").textContent=s.claims.daily?"今日のボーナスは受取済みです。":daily?"60分達成！100コインを受け取れるよ。":"今日60分勉強すると100コインを受け取れるよ。";
+}
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));document.querySelectorAll(".page").forEach(x=>x.classList.toggle("active",x.id===b.dataset.page));}));
+$("record").addEventListener("click",()=>{
+ checkDay();const mins=Math.floor(Number($("minutes").value));if(!Number.isFinite(mins)||mins<1||mins>600){alert("勉強時間は1〜600分で入力してね。");return;}
+ const subject=$("subject").value,memo=$("memo").value.trim();const reward=Math.min(300,Math.floor(mins/10)*10+ (mins>=25?5:0));s.totalMinutes+=mins;s.todayMinutes+=mins;addCoins(reward);
+ s.logs.unshift({date:today(),subject,minutes:mins,memo,coins:reward});s.logs=s.logs.slice(0,80);
+ $("memo").value="";alert(mins+"分の勉強おつかれさま！\\n"+reward+"コイン獲得！");save();
+});
+$("roll").addEventListener("click",()=>{
+ if(s.coins<100){$("gachaMessage").textContent="コインが足りないよ。まず勉強してコインを集めよう！";return;}
+ s.coins-=100;s.rolls++;const r=Math.random()*100;let rarity=r<5?"SSR":r<20?"SR":r<50?"R":"N";const pool=catalog.map((c,i)=>({...c,i})).filter(c=>c.rarity===rarity);const c=pool[Math.floor(Math.random()*pool.length)];s.owned[c.i]=(s.owned[c.i]||0)+1;
+ $("gachaResult").innerHTML='<div><div class="hero">'+c.emoji+'</div><div style="text-align:center"><b>'+c.name+'</b><p>'+c.desc+'</p><span class="btn '+(rarity==="SSR"?"pink":rarity==="SR"?"gold":"secondary")+'">'+rarity+'</span></div></div>';
+ $("gachaMessage").textContent=(rarity==="SSR"?"大当たり！！":rarity==="SR"?"レアアイテム獲得！":"ガチャ結果：")+" "+c.name+"（"+rarity+"）";save();
+});
+$("upgrade").addEventListener("click",()=>{const next=buildings[s.baseLevel];if(next&&s.coins>=next.cost){s.coins-=next.cost;s.baseLevel++;save();}});
+$("claimDaily").addEventListener("click",()=>{checkDay();if(s.todayMinutes>=60&&!s.claims.daily){s.claims.daily=true;s.coins+=100;s.xp+=10;s.level=1+Math.floor(s.xp/100);save();}});
+checkDay();render();
+})();
+</script>
+</body>
+</html>
