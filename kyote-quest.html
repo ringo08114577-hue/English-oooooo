@@ -34,6 +34,13 @@ footer{text-align:center;color:#8292b3;font-size:12px;margin-top:18px}
 </div>
 <section id="study" class="page active">
  <div class="grid">
+  <div class="card" style="margin-bottom:12px"><h2>⏳ 勉強タイマー</h2><p>時間を選んで開始。終了すると、実際に勉強した時間が記録されてコインになるよ。</p>
+   <label for="timerTarget">目標時間</label><select id="timerTarget" class="field"><option value="15">15分</option><option value="25" selected>25分（おすすめ）</option><option value="45">45分</option><option value="60">60分</option></select>
+   <div id="timerClock" style="text-align:center;font-size:clamp(38px,10vw,56px);font-weight:850;font-variant-numeric:tabular-nums;margin:8px 0;color:var(--blue)">25:00</div>
+   <div id="timerStatus" style="text-align:center;color:var(--muted);margin-bottom:12px">準備OK。教科を選んでスタートしよう。</div>
+   <div class="row"><button class="btn green" id="timerStart">▶ スタート</button><button class="btn secondary" id="timerPause" disabled>⏸ 一時停止</button><button class="btn gold" id="timerFinish" disabled>✓ 終了して記録</button></div>
+   <div class="notice">タイマーはページを閉じても開始時刻を保存するよ。目標時間に達すると自動で記録される。1分未満のセッションは報酬対象外。</div>
+  </div>
   <div class="card"><h2>⏱️ 勉強を記録</h2><p>勉強した時間を記録して報酬を受け取ろう。勉強が終わったら入力してね。</p>
    <label for="subject">教科</label><select id="subject" class="field"><option>英語</option><option>数学</option><option>国語</option><option>化学</option><option>物理</option><option>情報</option><option>地理・公民</option><option>その他</option></select>
    <label for="minutes">勉強した時間（分）</label><input id="minutes" class="field" type="number" min="1" max="600" value="25">
@@ -90,20 +97,28 @@ const catalog=[
 const buildings=[
  {name:"テント",emoji:"⛺",cost:0},{name:"図書館",emoji:"📚",cost:150},{name:"工房",emoji:"⚒️",cost:300},{name:"ガチャ塔",emoji:"🗼",cost:600},{name:"空中庭園",emoji:"🌳",cost:1000},{name:"星の城",emoji:"🏰",cost:1800}
 ];
-const defaults={coins:0,totalMinutes:0,todayMinutes:0,day:"",level:1,xp:0,baseLevel:1,owned:{},logs:[],claims:{},missionClaims:{},rolls:0};
+const defaults={coins:0,totalMinutes:0,todayMinutes:0,day:"",level:1,xp:0,baseLevel:1,owned:{},logs:[],claims:{},missionClaims:{},rolls:0,timerTargetMin:25,timerElapsedSec:0,timerStartedAt:0,timerRunning:false};
 let s;
 try{s=Object.assign({},defaults,JSON.parse(localStorage.getItem("kyoteQuestSave")||"{}"));}catch(e){s={...defaults};}
-s.owned=s.owned||{};s.logs=s.logs||[];s.claims=s.claims||{};s.missionClaims=s.missionClaims||{};
+s.owned=s.owned||{};s.logs=s.logs||[];s.claims=s.claims||{};s.missionClaims=s.missionClaims||{};s.timerTargetMin=[15,25,45,60].includes(Number(s.timerTargetMin))?Number(s.timerTargetMin):25;s.timerElapsedSec=Math.max(0,Number(s.timerElapsedSec)||0);s.timerStartedAt=Number(s.timerStartedAt)||0;s.timerRunning=Boolean(s.timerRunning);
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};
-function save(){localStorage.setItem("kyoteQuestSave",JSON.stringify(s));render();}
+function save(){try{localStorage.setItem("kyoteQuestSave",JSON.stringify(s));}catch(e){console.error("セーブに失敗しました",e);}render();}
 function fmt(n){return Math.floor(n).toLocaleString("ja-JP")}
 function addCoins(n){s.coins+=n;s.xp+=Math.max(1,Math.floor(n/10));s.level=1+Math.floor(s.xp/100)}
+function rewardForMinutes(mins){return Math.min(300,Math.max(5,Math.floor(mins*1.2)));}
+function addStudyRecord(mins,source){const subject=$("subject").value;const memo=$("memo").value.trim()||source;const reward=rewardForMinutes(mins);s.totalMinutes+=mins;s.todayMinutes+=mins;addCoins(reward);s.logs.unshift({date:today(),subject,minutes:mins,memo,coins:reward});s.logs=s.logs.slice(0,80);$("memo").value="";save();return reward;}
+function timerElapsed(){return Math.max(0,Math.floor((Number(s.timerElapsedSec)||0)+(s.timerRunning&&s.timerStartedAt?Math.max(0,Date.now()-s.timerStartedAt)/1000:0)));}
+function clockText(total){const mm=Math.floor(Math.max(0,total)/60);const ss=Math.max(0,total)%60;return String(mm).padStart(2,"0")+":"+String(ss).padStart(2,"0");}
+function updateTimerUI(){if(!$("timerClock"))return;const target=Math.max(1,Number(s.timerTargetMin)||25)*60;const elapsed=timerElapsed();$("timerClock").textContent=clockText(Math.max(0,target-elapsed));$("timerStatus").textContent=s.timerRunning?"集中中… 終了時に勉強記録と報酬が確定するよ。":elapsed>0?"一時停止中。続きから再開できるよ。":"準備OK。教科を選んでスタートしよう。";$("timerStart").disabled=s.timerRunning;$("timerStart").textContent=elapsed>0?"▶ 再開":"▶ スタート";$("timerPause").disabled=!s.timerRunning;$("timerFinish").disabled=elapsed<60;$("timerTarget").disabled=s.timerRunning||elapsed>0;}
+function finishTimer(reachedTarget){const seconds=timerElapsed();s.timerRunning=false;s.timerStartedAt=0;s.timerElapsedSec=0;if(seconds<60){save();alert("1分以上勉強すると記録できるよ。タイマーはリセットしたよ。");return;}const mins=Math.max(1,Math.floor(seconds/60));const reward=addStudyRecord(mins,"タイマー学習");alert((reachedTarget?"目標達成！ ":"")+"勉強 "+mins+" 分を記録！\\n"+reward+" コイン獲得！");}
+
 function checkDay(){if(s.day!==today()){s.day=today();s.todayMinutes=0;s.claims={};s.missionClaims={};}}
 function render(){
  checkDay();$("coins").textContent=fmt(s.coins);$("level").textContent=s.level;$("total").textContent=fmt(s.totalMinutes)+"分";
  $("todayText").textContent=s.todayMinutes>=60?"🎉 今日の目標達成！よく頑張った！":"今日 "+s.todayMinutes+" 分勉強したよ。目標まであと "+Math.max(0,60-s.todayMinutes)+" 分！";
  $("todayProgress").textContent=Math.min(s.todayMinutes,60)+" / 60分";$("todayBar").style.width=Math.min(100,s.todayMinutes/60*100)+"%";
  $("studyLog").innerHTML=s.logs.length?s.logs.slice(0,12).map(l=>"<div><b>"+esc(l.date)+" · "+esc(l.subject)+" "+l.minutes+"分</b> — "+esc(l.memo||"学習")+" <span style='color:var(--gold)'>+"+l.coins+"🪙</span></div>").join(""):"まだ記録がありません。";
+ updateTimerUI();
  const bl=Math.min(s.baseLevel,buildings.length);$("baseView").innerHTML=buildings.slice(0,bl).map(b=>'<div class="building">'+b.emoji+'<small>'+b.name+'</small></div>').join("")+'<div class="building">✨<small>Lv.'+s.baseLevel+'</small></div>';
  const next=buildings[s.baseLevel];const cost=next?next.cost:999999;
  $("baseText").textContent=next?"次の施設："+next.name+"（"+cost+"コイン）":"拠点は最高レベル！すごい！";
@@ -129,10 +144,14 @@ function renderMissions(){
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));document.querySelectorAll(".page").forEach(x=>x.classList.toggle("active",x.id===b.dataset.page));}));
 $("record").addEventListener("click",()=>{
  checkDay();const mins=Math.floor(Number($("minutes").value));if(!Number.isFinite(mins)||mins<1||mins>600){alert("勉強時間は1〜600分で入力してね。");return;}
- const subject=$("subject").value,memo=$("memo").value.trim();const reward=Math.min(300,Math.floor(mins/10)*10+ (mins>=25?5:0));s.totalMinutes+=mins;s.todayMinutes+=mins;addCoins(reward);
- s.logs.unshift({date:today(),subject,minutes:mins,memo,coins:reward});s.logs=s.logs.slice(0,80);
- $("memo").value="";alert(mins+"分の勉強おつかれさま！\\n"+reward+"コイン獲得！");save();
+ const reward=addStudyRecord(mins,"手動記録");alert(mins+"分の勉強おつかれさま！\\n"+reward+"コイン獲得！");
 });
+$("timerTarget").value=String(s.timerTargetMin);
+$("timerTarget").addEventListener("change",()=>{if(!s.timerRunning&&timerElapsed()===0){s.timerTargetMin=Number($("timerTarget").value);save();}});
+$("timerStart").addEventListener("click",()=>{if(s.timerRunning)return;if(timerElapsed()>=s.timerTargetMin*60)s.timerElapsedSec=0;s.timerRunning=true;s.timerStartedAt=Date.now();save();});
+$("timerPause").addEventListener("click",()=>{if(!s.timerRunning)return;s.timerElapsedSec=timerElapsed();s.timerRunning=false;s.timerStartedAt=0;save();});
+$("timerFinish").addEventListener("click",()=>finishTimer(false));
+setInterval(()=>{if(s.timerRunning){if(timerElapsed()>=s.timerTargetMin*60)finishTimer(true);else updateTimerUI();}},1000);
 $("roll").addEventListener("click",()=>{
  if(s.coins<100){$("gachaMessage").textContent="コインが足りないよ。まず勉強してコインを集めよう！";return;}
  s.coins-=100;s.rolls++;const r=Math.random()*100;let rarity=r<5?"SSR":r<20?"SR":r<50?"R":"N";const pool=catalog.map((c,i)=>({...c,i})).filter(c=>c.rarity===rarity);const c=pool[Math.floor(Math.random()*pool.length)];s.owned[c.i]=(s.owned[c.i]||0)+1;
