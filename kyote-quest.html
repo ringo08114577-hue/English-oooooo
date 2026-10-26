@@ -19,40 +19,45 @@ header{padding:22px 16px 14px;text-align:center}h1{margin:0;font-size:clamp(26px
 .log{max-height:160px;overflow:auto;color:var(--muted);font-size:13px;line-height:1.7}.log div{border-bottom:1px solid #25334f;padding:4px 0}
 footer{text-align:center;color:#8292b3;font-size:12px;margin-top:18px}
 @media(max-width:620px){.grid{grid-template-columns:1fr}.stats{gap:6px}.stat{padding:10px 8px}.items{grid-template-columns:repeat(3,minmax(0,1fr))}.tab{padding:9px 12px}.wrap{padding-left:10px;padding-right:10px}}
+.answer-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:14px}.answer-option{background:#1b2b49;border:1px solid #40567b;border-radius:12px;color:var(--text);padding:13px;text-align:left;font:inherit;font-weight:650;min-height:52px;cursor:pointer}.answer-option:disabled{cursor:default;opacity:.85}.answer-option.good{background:#153f36;border-color:#72e0ae}.answer-option.bad{background:#4b2636;border-color:#ff91c8}.question-text{font-size:clamp(18px,3.6vw,24px);font-weight:750;line-height:1.55;white-space:pre-wrap}.quiz-feedback{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:12px;line-height:1.65;white-space:pre-wrap;min-height:48px}.pill{display:inline-block;background:#263d62;border-radius:99px;padding:4px 9px;color:#c9dfff;font-size:12px;font-weight:750}@media(max-width:500px){.answer-grid{grid-template-columns:1fr}.answer-option{min-height:46px}}
 </style>
 </head>
 <body>
-<header><h1>⚔️ 共テクエスト</h1><p>勉強してコインを集め、ガチャ・拠点づくり・コレクションを楽しもう！</p></header>
+<header><h1>⚔️ 共テクエスト</h1><p>問題に正解してコインを集め、ガチャ・拠点づくり・コレクションを楽しもう！</p></header>
 <main class="wrap">
 <section class="stats">
  <div class="stat"><span>🪙 所持コイン</span><strong class="coin" id="coins">0</strong></div>
  <div class="stat"><span>⭐ プレイヤーLv.</span><strong class="level" id="level">1</strong></div>
- <div class="stat"><span>📚 累計勉強時間</span><strong id="total">0分</strong></div>
+ <div class="stat"><span>✅ 累計正解数</span><strong id="total">0問</strong></div>
 </section>
 <div class="tabs">
- <button class="tab active" data-page="study">📚 勉強</button><button class="tab" data-page="gacha">🎁 ガチャ</button><button class="tab" data-page="base">🏡 拠点</button><button class="tab" data-page="collection">📖 図鑑</button><button class="tab" data-page="missions">🎯 ミッション</button>
+ <button class="tab active" data-page="study">⚔️ クエスト</button><button class="tab" data-page="gacha">🎁 ガチャ</button><button class="tab" data-page="base">🏡 拠点</button><button class="tab" data-page="collection">📖 図鑑</button><button class="tab" data-page="missions">🎯 ミッション</button>
 </div>
 <section id="study" class="page active">
  <div class="grid">
-  <div class="card" style="margin-bottom:12px"><h2>⏳ 勉強タイマー</h2><p>時間を選んで開始。終了すると、実際に勉強した時間が記録されてコインになるよ。</p>
-   <label for="timerTarget">目標時間</label><select id="timerTarget" class="field"><option value="15">15分</option><option value="25" selected>25分（おすすめ）</option><option value="45">45分</option><option value="60">60分</option></select>
-   <div id="timerClock" style="text-align:center;font-size:clamp(38px,10vw,56px);font-weight:850;font-variant-numeric:tabular-nums;margin:8px 0;color:var(--blue)">25:00</div>
-   <div id="timerStatus" style="text-align:center;color:var(--muted);margin-bottom:12px">準備OK。教科を選んでスタートしよう。</div>
-   <div class="row"><button class="btn green" id="timerStart">▶ スタート</button><button class="btn secondary" id="timerPause" disabled>⏸ 一時停止</button><button class="btn gold" id="timerFinish" disabled>✓ 終了して記録</button></div>
-   <div class="notice">タイマーはページを閉じても開始時刻を保存するよ。目標時間に達すると自動で記録される。1分未満のセッションは報酬対象外。</div>
+  <div class="card">
+   <h2>⚔️ 共テクエスト</h2>
+   <p>ゲーム内の問題を解いてコインを獲得！正解で経験値、連続正解で追加ボーナス。コインをガチャや拠点強化に使おう。</p>
+   <div class="row">
+    <div><label for="quizSubject">教科</label><select id="quizSubject" class="field"><option value="all">全教科ランダム</option><option value="英語">英語</option><option value="数学">数学</option><option value="化学">化学</option><option value="物理">物理</option><option value="情報">情報</option></select></div>
+    <div><label for="quizDifficulty">難易度</label><select id="quizDifficulty" class="field"><option value="all">すべて</option><option value="1">基礎</option><option value="2">標準</option><option value="3">挑戦</option></select></div>
+   </div>
+   <div class="row" style="margin-top:12px"><span class="pill" id="questionMeta">問題を準備中…</span><span class="pill" id="questionReward">正解報酬 10🪙〜</span></div>
+   <div class="question-text" id="questionText" style="margin-top:14px">問題を読み込んでいます…</div>
+   <div class="answer-grid" id="answerOptions"></div>
+   <div class="quiz-feedback" id="quizFeedback" aria-live="polite">選択肢を選ぶと判定と解説が表示されるよ。</div>
+   <div class="row" style="margin-top:12px"><button class="btn gold" id="nextQuestion">次の問題へ →</button><button class="btn secondary" id="showHint">ヒント</button></div>
+   <div class="notice">正解報酬：基礎10・標準15・挑戦20コイン。同じ問題の同日2回目以降は復習報酬2コイン。連続正解でボーナス。</div>
   </div>
-  <div class="card"><h2>⏱️ 勉強を記録</h2><p>勉強した時間を記録して報酬を受け取ろう。勉強が終わったら入力してね。</p>
-   <label for="subject">教科</label><select id="subject" class="field"><option>英語</option><option>数学</option><option>国語</option><option>化学</option><option>物理</option><option>情報</option><option>地理・公民</option><option>その他</option></select>
-   <label for="minutes">勉強した時間（分）</label><input id="minutes" class="field" type="number" min="1" max="600" value="25">
-   <label for="memo">内容メモ（任意）</label><input id="memo" class="field" maxlength="70" placeholder="例：ターゲット1400を50語復習">
-   <div class="row" style="margin-top:10px"><button class="btn green" id="record">勉強完了！報酬を受け取る</button></div>
-   <div class="notice">目安：1分につき約1.2コイン。1回の報酬は最大300コイン。自分の学習記録として使う仕組みです。</div>
-  </div>
-  <div class="card"><h2>📈 今日の進み具合</h2><p id="todayText">今日も一歩ずつ進もう！</p><div class="progress"><div id="todayBar"></div></div><b id="todayProgress">0 / 60分</b><p>今日60分勉強するとデイリーボーナス！</p><div class="base"><div><div class="hero">🧙‍♂️</div><b>冒険者のギルド</b><div class="notice">勉強の成果が冒険者の力になる！</div></div></div>
+  <div class="card">
+   <h2>📊 冒険の記録</h2><p id="todayText">今日の正解数をここに表示するよ。</p><div class="progress"><div id="todayBar"></div></div><b id="todayProgress">0 / 10問</b>
+   <div class="row" style="margin:12px 0"><div class="stat"><span>🔥 連続正解</span><strong id="streak">0</strong></div><div class="stat"><span>✅ 累計正解</span><strong id="correctTotal">0</strong></div></div>
+   <div class="base"><div><div class="hero">🧙‍♂️</div><b>冒険者のギルド</b><div class="notice">問題を解いてコインを稼ぎ、仲間や拠点を強化しよう。</div></div></div>
+   <h2 style="margin-top:15px">🗒️ 解答ログ</h2><div class="log" id="studyLog">まだ解答がありません。</div>
   </div>
  </div>
- <div class="card" style="margin-top:12px"><h2>🗒️ 最近の勉強ログ</h2><div class="log" id="studyLog">まだ記録がありません。</div></div>
 </section>
+
 <section id="gacha" class="page">
  <div class="grid">
   <div class="card"><h2>🎁 冒険者ガチャ</h2><div class="hero">🎰</div><p>1回100コイン。仲間やアイテムを集めよう！</p><button class="btn gold" id="roll">ガチャを1回まわす（100🪙）</button><p class="notice">提供割合：SSR 5% / SR 15% / R 30% / N 50%。結果はゲーム内コレクションに保存されます。</p></div>
@@ -60,14 +65,14 @@ footer{text-align:center;color:#8292b3;font-size:12px;margin-top:18px}
  </div>
 </section>
 <section id="base" class="page">
- <div class="card"><h2>🏡 自分の拠点</h2><p>勉強で集めたコインを使って施設を育てよう。レベルが上がると見た目も変化！</p><div class="base" id="baseView"></div><div class="progress"><div id="baseBar"></div></div><p id="baseText"></p><button class="btn green" id="upgrade">拠点を強化する</button><p class="notice" id="upgradeNote"></p></div>
+ <div class="card"><h2>🏡 自分の拠点</h2><p>問題に正解して集めたコインで施設を育てよう。レベルが上がると見た目も変化！</p><div class="base" id="baseView"></div><div class="progress"><div id="baseBar"></div></div><p id="baseText"></p><button class="btn green" id="upgrade">拠点を強化する</button><p class="notice" id="upgradeNote"></p></div>
  <div class="card" style="margin-top:12px"><h2>🛠️ 施設一覧</h2><div class="items" id="buildings"></div></div>
 </section>
 <section id="collection" class="page">
  <div class="card"><h2>📖 コレクション図鑑</h2><p>ガチャで入手した仲間やアイテム。新しいものを集めるとコレクション率が上がる！</p><div class="progress"><div id="collectionBar"></div></div><b id="collectionCount">0 / 0 種類</b><div class="items" id="collectionItems" style="margin-top:12px"></div></div>
 </section>
 <section id="missions" class="page">
- <div class="card"><h2>🎯 ミッション</h2><p>達成したらボタンを押して報酬を受け取ろう。日替わりミッションは毎日リセットされるよ。</p><div id="missionList"></div><button class="btn secondary" id="claimDaily" style="margin-top:12px">デイリーボーナスを受け取る</button><div class="notice" id="dailyNote"></div></div>
+ <div class="card"><h2>🎯 ミッション</h2><p>達成したらボタンを押して報酬を受け取ろう。クエストミッションは毎日リセットされるよ。</p><div id="missionList"></div><button class="btn secondary" id="claimDaily" style="margin-top:12px">デイリーボーナスを受け取る</button><div class="notice" id="dailyNote"></div></div>
  <div class="card" style="margin-top:12px"><h2>💾 セーブ管理</h2><p>ゲームの進行状況はこのブラウザに自動保存されるよ。別の端末へ移すときは、書き出し・読み込みを使ってね。</p><div class="row"><button class="btn green" id="exportSave">セーブを書き出す</button><button class="btn secondary" id="importSaveBtn">セーブを読み込む</button></div><input id="saveFile" type="file" accept="application/json,.json" style="display:none"><div class="notice" id="saveMessage">セーブデータは自分で管理できるよ。</div><button class="btn secondary" id="resetSave" style="margin-top:10px">最初からやり直す</button><div class="notice">リセットすると今のコイン・アイテム・記録が消えるので注意。</div></div>
 </section>
 <footer>ゲームデータはこのブラウザ内に自動保存されます。ブラウザのデータを消すとセーブも消える場合があります。</footer>
@@ -98,28 +103,81 @@ const catalog=[
 const buildings=[
  {name:"テント",emoji:"⛺",cost:0},{name:"図書館",emoji:"📚",cost:150},{name:"工房",emoji:"⚒️",cost:300},{name:"ガチャ塔",emoji:"🗼",cost:600},{name:"空中庭園",emoji:"🌳",cost:1000},{name:"星の城",emoji:"🏰",cost:1800}
 ];
-const defaults={coins:0,totalMinutes:0,todayMinutes:0,day:"",level:1,xp:0,baseLevel:1,owned:{},logs:[],claims:{},missionClaims:{},rolls:0,timerTargetMin:25,timerElapsedSec:0,timerStartedAt:0,timerRunning:false};
+const quizQuestions=[
+{id:"en1",subject:"英語",topic:"英単語",level:1,question:"“moderate” に最も近い意味はどれ？",options:["適度な","輸入する","拒否する","まれな"],answer:0,explain:"moderate は「適度な、穏やかな」という意味。"},
+{id:"en2",subject:"英語",topic:"英単語",level:1,question:"“provide” の意味として正しいものは？",options:["提供する","避ける","比較する","借りる"],answer:0,explain:"provide は「提供する、供給する」。"},
+{id:"en3",subject:"英語",topic:"熟語",level:1,question:"“in advance” の意味はどれ？",options:["その場で","前もって","偶然に","少なくとも"],answer:1,explain:"in advance は「前もって、事前に」。"},
+{id:"en4",subject:"英語",topic:"熟語",level:2,question:"“be responsible for” の意味として最も適切なのは？",options:["〜を担当する・〜に責任がある","〜に反対する","〜を取り除く","〜を延期する"],answer:0,explain:"be responsible for は「〜に責任がある、〜を担当する」。"},
+{id:"en5",subject:"英語",topic:"文法",level:2,question:"空欄に入る語を選ぼう。\nIf I ___ more time, I would travel.",options:["have","had","will have","would have"],answer:1,explain:"仮定法過去では If 節に過去形を使うため had。"},
+{id:"en6",subject:"英語",topic:"英単語",level:1,question:"“proposal” の意味はどれ？",options:["提案","利益","発電機","許可"],answer:0,explain:"proposal は「提案、申し出」。"},
+{id:"ma1",subject:"数学",topic:"微分",level:2,question:"y = 3x² − 2x のとき、x = 2 における導関数の値 y′ は？",options:["4","8","10","12"],answer:2,explain:"y′ = 6x − 2。x = 2 を代入すると 12 − 2 = 10。"},
+{id:"ma2",subject:"数学",topic:"積分",level:2,question:"∫₀³ 2x dx の値は？",options:["3","6","9","12"],answer:2,explain:"原始関数は x²。x=0から3までなので 3² − 0² = 9。"},
+{id:"ma3",subject:"数学",topic:"対数",level:1,question:"log₃ 81 の値は？",options:["2","3","4","9"],answer:2,explain:"3⁴ = 81 なので log₃ 81 = 4。"},
+{id:"ma4",subject:"数学",topic:"二次方程式",level:1,question:"x² − 7x + 12 = 0 の解はどれ？",options:["x = 2, 5","x = 3, 4","x = −3, −4","x = 1, 12"],answer:1,explain:"x² − 7x + 12 = (x − 3)(x − 4)。よって x = 3, 4。"},
+{id:"ma5",subject:"数学",topic:"ベクトル",level:2,question:"ベクトル a = (2, 1)、b = (3, 4) の内積 a・b は？",options:["7","9","10","14"],answer:2,explain:"a・b = 2×3 + 1×4 = 6 + 4 = 10。"},
+{id:"ma6",subject:"数学",topic:"微分",level:3,question:"y = e^(2x) の導関数 y′ はどれ？",options:["e^(2x)","2e^(2x)","2xe^(2x)","e^(x²)"],answer:1,explain:"合成関数の微分より、(e^(2x))′ = e^(2x)×(2x)′ = 2e^(2x)。"},
+{id:"ch1",subject:"化学",topic:"酸・塩基",level:2,question:"完全電離する強酸 HCl の濃度が 0.01 mol/L のとき、25℃での pH は？",options:["0","1","2","12"],answer:2,explain:"[H⁺] = 0.01 = 10⁻² mol/L なので pH = 2。"},
+{id:"ch2",subject:"化学",topic:"中和",level:1,question:"塩酸 HCl と水酸化ナトリウム NaOH の中和でできる塩は？",options:["NaCl","Na₂SO₄","CaCl₂","KNO₃"],answer:0,explain:"HCl + NaOH → NaCl + H₂O。塩は塩化ナトリウム NaCl。"},
+{id:"ch3",subject:"化学",topic:"酸化還元",level:2,question:"電子を失う変化はどれ？",options:["還元","酸化","中和","電離"],answer:1,explain:"酸化は電子を失うこと、還元は電子を受け取ること。"},
+{id:"ch4",subject:"化学",topic:"物質量濃度",level:2,question:"NaCl が 0.20 mol 溶けている溶液 2.0 L のモル濃度は？",options:["0.05 mol/L","0.10 mol/L","0.20 mol/L","0.40 mol/L"],answer:1,explain:"モル濃度 = 物質量 ÷ 体積 = 0.20 ÷ 2.0 = 0.10 mol/L。"},
+{id:"ch5",subject:"化学",topic:"原子",level:1,question:"原子番号が 6 の元素はどれ？",options:["ホウ素","炭素","窒素","酸素"],answer:1,explain:"炭素 C の原子番号は 6。"},
+{id:"ch6",subject:"化学",topic:"酸・塩基",level:1,question:"水に溶けると OH⁻ を生じる代表的な塩基はどれ？",options:["HCl","NaOH","NaCl","CO₂"],answer:1,explain:"水酸化ナトリウム NaOH は水中で Na⁺ と OH⁻ に電離する。"},
+{id:"ph1",subject:"物理",topic:"電気",level:1,question:"2 Ω と 3 Ω の抵抗を直列につないだ。合成抵抗は？",options:["1 Ω","2.5 Ω","5 Ω","6 Ω"],answer:2,explain:"直列接続では抵抗を足すので 2 + 3 = 5 Ω。"},
+{id:"ph2",subject:"物理",topic:"波",level:2,question:"振動数 5 Hz、波長 2 m の波の速さは？",options:["2.5 m/s","7 m/s","10 m/s","25 m/s"],answer:2,explain:"波の速さ v = fλ = 5 × 2 = 10 m/s。"},
+{id:"ph3",subject:"物理",topic:"力学",level:2,question:"質量 2 kg の物体が速さ 3 m/s で動く。運動量の大きさは？",options:["1.5 kg·m/s","5 kg·m/s","6 kg·m/s","9 kg·m/s"],answer:2,explain:"運動量 p = mv = 2 × 3 = 6 kg·m/s。"},
+{id:"ph4",subject:"物理",topic:"単位",level:1,question:"力の SI 単位はどれ？",options:["J（ジュール）","W（ワット）","N（ニュートン）","Pa（パスカル）"],answer:2,explain:"力の SI 単位はニュートン（N）。J はエネルギー、W は仕事率、Pa は圧力。"},
+{id:"ph5",subject:"物理",topic:"力学",level:3,question:"静止から自由落下する物体。重力加速度を 9.8 m/s² とすると、2.0 秒後の速さは？（空気抵抗なし）",options:["4.9 m/s","9.8 m/s","19.6 m/s","39.2 m/s"],answer:2,explain:"v = gt = 9.8 × 2.0 = 19.6 m/s。"},
+{id:"in1",subject:"情報",topic:"2進数",level:1,question:"2進数 1101 を10進数に直すと？",options:["11","12","13","14"],answer:2,explain:"1101₂ = 1×8 + 1×4 + 0×2 + 1×1 = 13。"},
+{id:"in2",subject:"情報",topic:"データ表現",level:1,question:"1 byte は何 bit？",options:["2 bit","4 bit","8 bit","16 bit"],answer:2,explain:"1 byte は 8 bit。"},
+{id:"in3",subject:"情報",topic:"論理演算",level:2,question:"論理積 AND が true になる条件は？",options:["少なくとも一方が true","両方が true","両方が false","左側だけが true"],answer:1,explain:"AND は入力した2つの条件が両方 true のときだけ true。"},
+{id:"in4",subject:"情報",topic:"プログラミング",level:1,question:"プログラムで if 文が主に使われるのは？",options:["条件による分岐","画像の圧縮","文字コードの変換","通信の暗号化"],answer:0,explain:"if 文は条件が成り立つかどうかで処理を分けるために使う。"},
+{id:"in5",subject:"情報",topic:"ネットワーク",level:2,question:"HTTPS の通信で、通信内容の保護に使われる仕組みはどれ？",options:["TLS による暗号化","画面の解像度変更","ファイルの圧縮だけ","CPU の並列化"],answer:0,explain:"HTTPS は TLS などを使って通信の暗号化や認証を行う。"}
+];
+
+const defaults={coins:0,totalMinutes:0,todayMinutes:0,day:"",level:1,xp:0,baseLevel:1,owned:{},logs:[],claims:{},missionClaims:{},rolls:0,correctTotal:0,todayCorrect:0,totalAttempts:0,todayAttempts:0,streak:0,bestTodayStreak:0,questionClaims:{}};
 let s;
 try{s=Object.assign({},defaults,JSON.parse(localStorage.getItem("kyoteQuestSave")||"{}"));}catch(e){s={...defaults};}
-s.owned=s.owned||{};s.logs=s.logs||[];s.claims=s.claims||{};s.missionClaims=s.missionClaims||{};s.timerTargetMin=[15,25,45,60].includes(Number(s.timerTargetMin))?Number(s.timerTargetMin):25;s.timerElapsedSec=Math.max(0,Number(s.timerElapsedSec)||0);s.timerStartedAt=Number(s.timerStartedAt)||0;s.timerRunning=Boolean(s.timerRunning);
+s.owned=s.owned||{};s.logs=Array.isArray(s.logs)?s.logs:[];s.claims=s.claims||{};s.missionClaims=s.missionClaims||{};s.questionClaims=s.questionClaims||{};s.correctTotal=Math.max(0,Number(s.correctTotal)||0);s.todayCorrect=Math.max(0,Number(s.todayCorrect)||0);s.totalAttempts=Math.max(0,Number(s.totalAttempts)||0);s.todayAttempts=Math.max(0,Number(s.todayAttempts)||0);s.streak=Math.max(0,Number(s.streak)||0);s.bestTodayStreak=Math.max(0,Number(s.bestTodayStreak)||0);
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate()};
 function save(){try{localStorage.setItem("kyoteQuestSave",JSON.stringify(s));}catch(e){console.error("セーブに失敗しました",e);}render();}
 function fmt(n){return Math.floor(n).toLocaleString("ja-JP")}
 function addCoins(n){s.coins+=n;s.xp+=Math.max(1,Math.floor(n/10));s.level=1+Math.floor(s.xp/100)}
-function rewardForMinutes(mins){return Math.min(300,Math.max(5,Math.floor(mins*1.2)));}
-function addStudyRecord(mins,source){const subject=$("subject").value;const memo=$("memo").value.trim()||source;const reward=rewardForMinutes(mins);s.totalMinutes+=mins;s.todayMinutes+=mins;addCoins(reward);s.logs.unshift({date:today(),subject,minutes:mins,memo,coins:reward});s.logs=s.logs.slice(0,80);$("memo").value="";save();return reward;}
-function timerElapsed(){return Math.max(0,Math.floor((Number(s.timerElapsedSec)||0)+(s.timerRunning&&s.timerStartedAt?Math.max(0,Date.now()-s.timerStartedAt)/1000:0)));}
-function clockText(total){const mm=Math.floor(Math.max(0,total)/60);const ss=Math.max(0,total)%60;return String(mm).padStart(2,"0")+":"+String(ss).padStart(2,"0");}
-function updateTimerUI(){if(!$("timerClock"))return;const target=Math.max(1,Number(s.timerTargetMin)||25)*60;const elapsed=timerElapsed();$("timerClock").textContent=clockText(Math.max(0,target-elapsed));$("timerStatus").textContent=s.timerRunning?"集中中… 終了時に勉強記録と報酬が確定するよ。":elapsed>0?"一時停止中。続きから再開できるよ。":"準備OK。教科を選んでスタートしよう。";$("timerStart").disabled=s.timerRunning;$("timerStart").textContent=elapsed>0?"▶ 再開":"▶ スタート";$("timerPause").disabled=!s.timerRunning;$("timerFinish").disabled=elapsed<60;$("timerTarget").disabled=s.timerRunning||elapsed>0;}
-function finishTimer(reachedTarget){const seconds=timerElapsed();s.timerRunning=false;s.timerStartedAt=0;s.timerElapsedSec=0;if(seconds<60){save();alert("1分以上勉強すると記録できるよ。タイマーはリセットしたよ。");return;}const mins=Math.max(1,Math.floor(seconds/60));const reward=addStudyRecord(mins,"タイマー学習");alert((reachedTarget?"目標達成！ ":"")+"勉強 "+mins+" 分を記録！\\n"+reward+" コイン獲得！");}
-
-function checkDay(){if(s.day!==today()){s.day=today();s.todayMinutes=0;s.claims={};s.missionClaims={};}}
+let currentQuestion=null,questionAnswered=false;
+function selectQuestion(){
+ const subject=$("quizSubject").value,diff=$("quizDifficulty").value;
+ let pool=quizQuestions.filter(q=>(subject==="all"||q.subject===subject)&&(diff==="all"||String(q.level)===diff));
+ if(!pool.length)pool=quizQuestions.slice();
+ if(currentQuestion&&pool.length>1)pool=pool.filter(q=>q.id!==currentQuestion.id);
+ currentQuestion=pool[Math.floor(Math.random()*pool.length)];questionAnswered=false;
+ $("questionMeta").textContent=currentQuestion.subject+" · "+currentQuestion.topic+" · "+(["","基礎","標準","挑戦"][currentQuestion.level]);
+ $("questionReward").textContent="正解報酬 "+({1:10,2:15,3:20}[currentQuestion.level])+"🪙〜";
+ $("questionText").textContent=currentQuestion.question;
+ $("answerOptions").innerHTML=currentQuestion.options.map((op,i)=>'<button class="answer-option" data-answer="'+i+'">'+String.fromCharCode(65+i)+". "+esc(op)+'</button>').join("");
+ $("quizFeedback").textContent="選択肢を選んで答えよう。";
+}
+function submitAnswer(choice){
+ if(!currentQuestion||questionAnswered)return;
+ questionAnswered=true;const q=currentQuestion,correct=choice===q.answer;
+ const buttons=[...$("answerOptions").querySelectorAll("[data-answer]")];
+ buttons.forEach((b,i)=>{b.disabled=true;if(i===q.answer)b.classList.add("good");if(i===choice&&!correct)b.classList.add("bad");});
+ s.totalAttempts=(s.totalAttempts||0)+1;s.todayAttempts=(s.todayAttempts||0)+1;
+ let reward=0;
+ if(correct){
+  s.correctTotal=(s.correctTotal||0)+1;s.todayCorrect=(s.todayCorrect||0)+1;s.streak=(s.streak||0)+1;s.bestTodayStreak=Math.max(s.bestTodayStreak||0,s.streak);
+  const firstToday=s.questionClaims[q.id]!==today(),base=({1:10,2:15,3:20}[q.level]||10);
+  const streakBonus=Math.min(10,Math.floor(s.streak/3)*2);reward=firstToday?base+streakBonus:2;
+  if(firstToday)s.questionClaims[q.id]=today();addCoins(reward);
+  $("quizFeedback").textContent="✅ 正解！ "+q.explain+"\n\n+"+reward+" コイン"+(streakBonus&&firstToday?"（連続正解ボーナス込み）":"")+(firstToday?"":"（本日のこの問題は解答済みなので復習報酬）");
+ }else{s.streak=0;$("quizFeedback").textContent="❌ 不正解。正解は「"+q.options[q.answer]+"」。\n"+q.explain;}
+ s.logs.unshift({date:today(),subject:q.subject,q:q.question,correct,coins:reward});s.logs=s.logs.slice(0,80);save();
+}
+function checkDay(){if(s.day!==today()){s.day=today();s.todayMinutes=0;s.todayCorrect=0;s.todayAttempts=0;s.bestTodayStreak=0;s.claims={};s.missionClaims={};}}
 function render(){
- checkDay();$("coins").textContent=fmt(s.coins);$("level").textContent=s.level;$("total").textContent=fmt(s.totalMinutes)+"分";
- $("todayText").textContent=s.todayMinutes>=60?"🎉 今日の目標達成！よく頑張った！":"今日 "+s.todayMinutes+" 分勉強したよ。目標まであと "+Math.max(0,60-s.todayMinutes)+" 分！";
- $("todayProgress").textContent=Math.min(s.todayMinutes,60)+" / 60分";$("todayBar").style.width=Math.min(100,s.todayMinutes/60*100)+"%";
- $("studyLog").innerHTML=s.logs.length?s.logs.slice(0,12).map(l=>"<div><b>"+esc(l.date)+" · "+esc(l.subject)+" "+l.minutes+"分</b> — "+esc(l.memo||"学習")+" <span style='color:var(--gold)'>+"+l.coins+"🪙</span></div>").join(""):"まだ記録がありません。";
- updateTimerUI();
+ checkDay();$("coins").textContent=fmt(s.coins);$("level").textContent=s.level;$("total").textContent=fmt(s.correctTotal||0)+"問";
+ $("todayText").textContent=(s.todayCorrect||0)>=10?"🎉 今日10問正解達成！よく頑張った！":"今日の正解 "+(s.todayCorrect||0)+" 問。あと "+Math.max(0,10-(s.todayCorrect||0))+" 問でデイリー目標！";
+ $("todayProgress").textContent=Math.min(s.todayCorrect||0,10)+" / 10問";$("todayBar").style.width=Math.min(100,(s.todayCorrect||0)/10*100)+"%";
+ $("streak").textContent=s.streak||0;$("correctTotal").textContent=fmt(s.correctTotal||0);
+ $("studyLog").innerHTML=s.logs.length?s.logs.slice(0,12).map(l=>"<div><b>"+esc(l.date)+" · "+esc(l.subject)+" "+(l.correct?"✅":"❌")+"</b> — "+esc(l.q||"問題")+' <span style="color:var(--gold)">+'+(l.coins||0)+"🪙</span></div>").join(""):"まだ解答がありません。";
  const bl=Math.min(s.baseLevel,buildings.length);$("baseView").innerHTML=buildings.slice(0,bl).map(b=>'<div class="building">'+b.emoji+'<small>'+b.name+'</small></div>').join("")+'<div class="building">✨<small>Lv.'+s.baseLevel+'</small></div>';
  const next=buildings[s.baseLevel];const cost=next?next.cost:999999;
  $("baseText").textContent=next?"次の施設："+next.name+"（"+cost+"コイン）":"拠点は最高レベル！すごい！";
@@ -133,34 +191,30 @@ function render(){
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function renderMissions(){
  const ms=[
-  {id:"study20",name:"まずは20分勉強",desc:"今日の勉強時間が20分以上",reward:30,ok:s.todayMinutes>=20},
-  {id:"study60",name:"集中して60分",desc:"今日の勉強時間が60分以上",reward:70,ok:s.todayMinutes>=60},
-  {id:"subjects2",name:"教科を切り替えて挑戦",desc:"今日2教科以上を記録",reward:40,ok:new Set(s.logs.filter(l=>l.date===today()).map(l=>l.subject)).size>=2},
-  {id:"record",name:"学習記録をつけよう",desc:"今日1回以上記録",reward:20,ok:s.logs.some(l=>l.date===today())}
+  {id:"correct1",name:"最初の正解",desc:"今日1問正解する",reward:10,ok:(s.todayCorrect||0)>=1},
+  {id:"correct5",name:"クエストに慣れよう",desc:"今日5問正解する",reward:30,ok:(s.todayCorrect||0)>=5},
+  {id:"correct10",name:"本日の目標達成",desc:"今日10問正解する",reward:60,ok:(s.todayCorrect||0)>=10},
+  {id:"streak3",name:"コンボ発動",desc:"今日の連続正解3問を達成",reward:25,ok:(s.bestTodayStreak||0)>=3}
  ];
  $("missionList").innerHTML=ms.map(m=>{let claimed=!!s.missionClaims[m.id];return '<div class="mission"><div><b>'+m.name+'</b><small>'+m.desc+' · 報酬 '+m.reward+'🪙</small></div><button class="btn '+(claimed?'secondary':m.ok?'green':'secondary')+'" '+(!m.ok||claimed?'disabled':'')+' data-claim="'+m.id+'">'+(claimed?'受取済み':m.ok?'受け取る':'未達成')+'</button></div>'}).join("");
- document.querySelectorAll("[data-claim]").forEach(b=>b.onclick=()=>{let m=ms.find(x=>x.id===b.dataset.claim);if(m&&!s.missionClaims[m.id]&&m.ok){s.missionClaims[m.id]=true;s.coins+=m.reward;s.xp+=5;s.level=1+Math.floor(s.xp/100);save();}});
- const daily=s.todayMinutes>=60&&!s.claims.daily;$("claimDaily").disabled=!daily;$("dailyNote").textContent=s.claims.daily?"今日のボーナスは受取済みです。":daily?"60分達成！100コインを受け取れるよ。":"今日60分勉強すると100コインを受け取れるよ。";
+ document.querySelectorAll("[data-claim]").forEach(b=>b.onclick=()=>{let m=ms.find(x=>x.id===b.dataset.claim);if(m&&!s.missionClaims[m.id]&&m.ok){s.missionClaims[m.id]=true;addCoins(m.reward);save();}});
+ const daily=(s.todayCorrect||0)>=10&&!s.claims.daily;$("claimDaily").disabled=!daily;$("dailyNote").textContent=s.claims.daily?"今日のボーナスは受取済みです。":daily?"10問正解達成！50コインを受け取れるよ。":"今日10問正解すると50コインを受け取れるよ。";
 }
+
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));document.querySelectorAll(".page").forEach(x=>x.classList.toggle("active",x.id===b.dataset.page));}));
-$("record").addEventListener("click",()=>{
- checkDay();const mins=Math.floor(Number($("minutes").value));if(!Number.isFinite(mins)||mins<1||mins>600){alert("勉強時間は1〜600分で入力してね。");return;}
- const reward=addStudyRecord(mins,"手動記録");alert(mins+"分の勉強おつかれさま！\\n"+reward+"コイン獲得！");
-});
-$("timerTarget").value=String(s.timerTargetMin);
-$("timerTarget").addEventListener("change",()=>{if(!s.timerRunning&&timerElapsed()===0){s.timerTargetMin=Number($("timerTarget").value);save();}});
-$("timerStart").addEventListener("click",()=>{if(s.timerRunning)return;if(timerElapsed()>=s.timerTargetMin*60)s.timerElapsedSec=0;s.timerRunning=true;s.timerStartedAt=Date.now();save();});
-$("timerPause").addEventListener("click",()=>{if(!s.timerRunning)return;s.timerElapsedSec=timerElapsed();s.timerRunning=false;s.timerStartedAt=0;save();});
-$("timerFinish").addEventListener("click",()=>finishTimer(false));
-setInterval(()=>{if(s.timerRunning){if(timerElapsed()>=s.timerTargetMin*60)finishTimer(true);else updateTimerUI();}},1000);
+$("answerOptions").addEventListener("click",ev=>{const b=ev.target.closest("[data-answer]");if(b)submitAnswer(Number(b.dataset.answer));});
+$("nextQuestion").addEventListener("click",selectQuestion);
+$("quizSubject").addEventListener("change",selectQuestion);
+$("quizDifficulty").addEventListener("change",selectQuestion);
+$("showHint").addEventListener("click",()=>{if(!currentQuestion)return;let hint="使う公式や用語の定義を思い出して、選択肢を比べよう。";if(currentQuestion.topic==="微分")hint="指数関数や多項式の微分法則を思い出そう。";else if(currentQuestion.topic==="積分")hint="原始関数を求めて、上端と下端を代入しよう。";else if(currentQuestion.topic==="2進数")hint="各桁が表す 1、2、4、8… の重みを考えよう。";else if(currentQuestion.topic==="物質量濃度")hint="物質量を体積で割ろう。";else if(currentQuestion.subject==="英語")hint="選択肢を見ずに、知っている熟語や品詞から意味を思い出そう。";else if(currentQuestion.subject==="情報")hint="用語の定義や、入力と出力の条件を思い出そう。";$("quizFeedback").textContent="💡 ヒント："+hint;});
 $("roll").addEventListener("click",()=>{
- if(s.coins<100){$("gachaMessage").textContent="コインが足りないよ。まず勉強してコインを集めよう！";return;}
+ if(s.coins<100){$("gachaMessage").textContent="コインが足りないよ。クエストで問題に正解してコインを集めよう！";return;}
  s.coins-=100;s.rolls++;const r=Math.random()*100;let rarity=r<5?"SSR":r<20?"SR":r<50?"R":"N";const pool=catalog.map((c,i)=>({...c,i})).filter(c=>c.rarity===rarity);const c=pool[Math.floor(Math.random()*pool.length)];s.owned[c.i]=(s.owned[c.i]||0)+1;
  $("gachaResult").innerHTML='<div><div class="hero">'+c.emoji+'</div><div style="text-align:center"><b>'+c.name+'</b><p>'+c.desc+'</p><span class="btn '+(rarity==="SSR"?"pink":rarity==="SR"?"gold":"secondary")+'">'+rarity+'</span></div></div>';
  $("gachaMessage").textContent=(rarity==="SSR"?"大当たり！！":rarity==="SR"?"レアアイテム獲得！":"ガチャ結果：")+" "+c.name+"（"+rarity+"）";save();
 });
 $("upgrade").addEventListener("click",()=>{const next=buildings[s.baseLevel];if(next&&s.coins>=next.cost){s.coins-=next.cost;s.baseLevel++;save();}});
-$("claimDaily").addEventListener("click",()=>{checkDay();if(s.todayMinutes>=60&&!s.claims.daily){s.claims.daily=true;s.coins+=100;s.xp+=10;s.level=1+Math.floor(s.xp/100);save();}});
+$("claimDaily").addEventListener("click",()=>{checkDay();if((s.todayCorrect||0)>=10&&!s.claims.daily){s.claims.daily=true;addCoins(50);save();}});
 
 $("exportSave").addEventListener("click",()=>{
  try{const blob=new Blob([JSON.stringify(s,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="kyote-quest-save-"+today()+".json";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);$("saveMessage").textContent="セーブを書き出したよ。ファイルを大切に保管してね。";}
@@ -174,7 +228,7 @@ $("saveFile").addEventListener("change",()=>{
   const data=JSON.parse(String(reader.result||""));
   if(!data||typeof data!=="object"||!Number.isFinite(Number(data.coins))||!Array.isArray(data.logs)||!data.owned||typeof data.owned!=="object")throw new Error("セーブ形式が違います");
   const next=Object.assign({},defaults,data);
-  next.coins=Math.max(0,Math.floor(Number(next.coins)||0));next.totalMinutes=Math.max(0,Math.floor(Number(next.totalMinutes)||0));next.todayMinutes=Math.max(0,Math.floor(Number(next.todayMinutes)||0));next.xp=Math.max(0,Math.floor(Number(next.xp)||0));next.level=1+Math.floor(next.xp/100);next.baseLevel=Math.max(1,Math.min(buildings.length,Math.floor(Number(next.baseLevel)||1)));next.owned=next.owned||{};next.logs=next.logs.slice(0,80);next.claims=next.claims||{};next.missionClaims=next.missionClaims||{};next.timerTargetMin=[15,25,45,60].includes(Number(next.timerTargetMin))?Number(next.timerTargetMin):25;next.timerElapsedSec=Math.max(0,Number(next.timerElapsedSec)||0);next.timerStartedAt=Number(next.timerStartedAt)||0;next.timerRunning=Boolean(next.timerRunning);
+  next.coins=Math.max(0,Math.floor(Number(next.coins)||0));next.xp=Math.max(0,Math.floor(Number(next.xp)||0));next.level=1+Math.floor(next.xp/100);next.baseLevel=Math.max(1,Math.min(buildings.length,Math.floor(Number(next.baseLevel)||1)));next.owned=next.owned||{};next.logs=Array.isArray(next.logs)?next.logs.slice(0,80):[];next.claims=next.claims||{};next.missionClaims=next.missionClaims||{};next.questionClaims=next.questionClaims||{};next.correctTotal=Math.max(0,Number(next.correctTotal)||0);next.todayCorrect=Math.max(0,Number(next.todayCorrect)||0);next.totalAttempts=Math.max(0,Number(next.totalAttempts)||0);next.todayAttempts=Math.max(0,Number(next.todayAttempts)||0);next.streak=Math.max(0,Number(next.streak)||0);next.bestTodayStreak=Math.max(0,Number(next.bestTodayStreak)||0);
   s=next;checkDay();save();$("saveMessage").textContent="セーブデータを読み込んだよ！";
  }catch(e){$("saveMessage").textContent="読み込めませんでした。正しい共テクエストのセーブファイルか確認してね。";}};
  reader.readAsText(file);$("saveFile").value="";
