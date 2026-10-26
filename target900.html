@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Target 900 × 作業基地+</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#111827;color:#f3f4f6;padding:24px;line-height:1.7}
+main{max-width:680px;margin:8vh auto;background:#1f2937;border:1px solid #374151;border-radius:16px;padding:22px}
+</style>
+</head>
+<body>
+<main>
+<h1>Target 900 を準備中…</h1>
+<p>元のゲームから1〜900番の単語だけを使う版を読み込んでいます。</p>
+<p id="status">読み込み中…</p>
+</main>
+<script>
+(async()=>{
+  const status=document.getElementById('status');
+  try{
+    const url=new URL('target1400-1.html', location.href);
+    const response=await fetch(url,{cache:'no-store'});
+    if(!response.ok) throw new Error('元ファイルを開けませんでした（HTTP '+response.status+'）');
+    let source=await response.text();
+    const wordsPattern=/const WORDS=(\[.*?\]);\s*const KEY=/s;
+    if(!wordsPattern.test(source)) throw new Error('元ファイルの形式が想定と異なります。');
+    source=source.replace(wordsPattern,(_,list)=>'const WORDS='+list+'.slice(0,900);\nconst KEY=');
+    source=source.replace(/Target 1400/g,'Target 900');
+    source=source.replace('収録：<b id="total">1400</b>語','収録：<b id="total">900</b>語');
+    source=source.replace('No. <span id="no"></span> / 1400','No. <span id="no"></span> / 900');
+    source=source.replace("target1400_powerup_save_v1","target900_powerup_save_v1");
+    document.open();
+    document.write(source);
+    document.close();
+  }catch(error){
+    status.textContent='読み込みに失敗しました。'+error.message+' このファイルを元の target1400-1.html と同じGitHub Pagesフォルダに置いてください。元のファイルは削除・変更しないでください。';
+  }
+})();
+</script>
+</body>
+</html>
