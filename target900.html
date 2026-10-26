@@ -20,6 +20,51 @@ function wordData(word){if(!S.words[word])S.words[word]={correct:0,wrong:0,strea
 function norm(s){return String(s||'').toLowerCase().normalize('NFKC').replace(/[ 　\t\n、。,.，．・：:「」『』（）()]/g,'').replace(/(する|した|して|します|こと|もの|を|が|は|に|へ|と|で|の)$/g,'')}
 function candidates(x){return x.m.split(/[、,，\/；;]/).concat(wordData(x.w).answers||[])}
 function judge(input,x){let a=norm(input);if(!a)return false;return candidates(x).some(v=>{let b=norm(v);return b&&(a===b||b.includes(a)||a.includes(b))})}
+
+// 正解の日本語をひらがなに変換して照合する。変換結果はこの端末に保存して次回から再利用する。
+const HIRAGANA_CACHE_KEY='target900_hiragana_reading_cache_v1';
+let HIRAGANA_CACHE={};
+try{HIRAGANA_CACHE=JSON.parse(localStorage.getItem(HIRAGANA_CACHE_KEY)||'{}')||{}}catch(e){HIRAGANA_CACHE={}}
+function kanaForm(s){return String(s||'').normalize('NFKC').replace(/[\u30a1-\u30f6]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0x60))}
+async function getHiraganaReading(term){
+ const key=String(term||'').trim();if(!key)return '';
+ if(Object.prototype.hasOwnProperty.call(HIRAGANA_CACHE,key))return HIRAGANA_CACHE[key];
+ const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
+ try{
+  const response=await fetch('https://yomi.onrender.com/analyze',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:'text='+encodeURIComponent(key)+'&mode=normal&to=hiragana',signal:controller.signal});
+  if(!response.ok)throw new Error('reading service unavailable');
+  const data=await response.json();
+  const tokens=Array.isArray(data.words)?data.words:[];
+  const raw=tokens.map(t=>{let r=t.reading_raw||t.pronunciation_raw||'';if(!r||r==='*')r=t.surface||'';return r}).join('');
+  const reading=kanaForm(raw).replace(/[()（）\s、。,.，．・：:]/g,'');
+  if(!reading||/[\u3400-\u9fff々]/.test(reading))throw new Error('reading not found');
+  HIRAGANA_CACHE[key]=reading;try{localStorage.setItem(HIRAGANA_CACHE_KEY,JSON.stringify(HIRAGANA_CACHE))}catch(e){}
+  return reading;
+ }finally{clearTimeout(timer)}
+}
+async function judgeByHiragana(input,x){
+ const a=norm(kanaForm(input));if(!a)return false;
+ const meanings=x.m.split(/[、,，\\/；;]/).filter(Boolean);
+ for(const item of meanings){
+  const b=norm(await getHiraganaReading(item).then(kanaForm));if(!b)continue;
+  if(a===b)return true;
+  if(Math.min(a.length,b.length)>=2&&(b.includes(a)||a.includes(b))&&Math.min(a.length,b.length)/Math.max(a.length,b.length)>=0.55)return true;
+ }
+ return false;
+}
+let checkingAnswer=false;
+async function checkCurrentAnswer(){
+ if(answered||checkingAnswer)return;
+ const input=$('answer').value.trim(),x=WORDS[idx];
+ if(judge(input,x)){finish(true);return}
+ const hasKana=/[\u3041-\u3096\u30a1-\u30f6]/.test(input);
+ const hasKanji=/[\u3400-\u9fff々]/.test(input);
+ if(!hasKana||hasKanji){finish(false);return}
+ checkingAnswer=true;$('check').disabled=true;$('msg').textContent='ひらがなの読みを確認中…';$('msg').className='msg';
+ try{const ok=await judgeByHiragana(input,x);if(!answered)finish(ok)}
+ catch(e){if(!answered){$('msg').textContent='ひらがなの読み確認に失敗したよ。通信を確認して、もう一度「答える」を押してね。';$('msg').className='msg bad';$('check').disabled=false}}
+ finally{checkingAnswer=false}
+}
 function difficulty(x){let d=S.words[x.w];if(!d)return 0;return Math.max(0,d.wrong*3-d.correct+(d.streak===0&&d.wrong>0?2:0))}
 function weakList(){return WORDS.filter(x=>difficulty(x)>0).sort((a,b)=>difficulty(b)-difficulty(a))}
 function choose(){let mode=$('mode').value;let pool=WORDS;if(mode==='weak'){let w=weakList();if(w.length)pool=w.slice(0,Math.min(120,w.length));}else if(mode==='unseen'){let u=WORDS.filter(x=>!S.words[x.w]);if(u.length)pool=u;}idx=WORDS.indexOf(pool[Math.floor(Math.random()*pool.length)]);}
@@ -28,7 +73,7 @@ function stats(){ $('points').textContent=Math.floor(S.points);$('work').textCon
 function addHistory(x,ok,answer){S.history.unshift({word:x.w,meaning:x.m,ok,answer,time:Date.now()});S.history=S.history.slice(0,12);$('history').innerHTML=S.history.slice(0,8).map(h=>`<div>${h.ok?'✅':'❌'} ${esc(h.word)} — ${esc(h.meaning)}${h.ok&&h.answer?' <span class="muted">(回答: '+esc(h.answer)+')</span>':''}</div>`).join('')}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function finish(ok,skip=false){if(answered)return;answered=true;let x=WORDS[idx], input=$('answer').value.trim(),d=wordData(x.w);S.attempts++;if(ok){S.correct++;d.correct++;d.streak++;if(input&&!d.answers.includes(input))d.answers.push(input);let bonus=Math.min(10,S.streak);let hard=difficulty(x)>0?5:0;let pts=10+bonus+hard;let work=1+Math.floor((S.streak+1)/5);S.points+=pts;S.work+=work;S.streak++;d.last=Date.now();$('msg').textContent=`✅ 正解！ +${pts}pt / 作業 +${work}${hard?' / 苦手克服ボーナス +5':''}`;$('msg').className='msg ok'}else{d.wrong++;d.streak=0;d.last=Date.now();S.streak=0;S.points=Math.max(0,S.points-2);$('msg').textContent=skip?`💡 正解は「${x.m}」`:`❌ 正解は「${x.m}」`;$('msg').className='msg bad'}d.last=Date.now();$('answer').disabled=true;$('check').disabled=true;$('skip').disabled=true;$('next').style.display='inline-block';$('wordStats').textContent=`この単語：正解 ${d.correct}回 / 不正解 ${d.wrong}回${d.answers.length?' / 自分の答え：'+d.answers.join('・'):''}`;addHistory(x,ok,input);save();stats()}
-$('check').onclick=()=>finish(judge($('answer').value,WORDS[idx]));$('skip').onclick=()=>finish(false,true);$('next').onclick=()=>{choose();render()};$('answer').addEventListener('keydown',e=>{if(e.key==='Enter'&&!answered)$('check').click()});$('mode').onchange=()=>{choose();render()};
+$('check').onclick=checkCurrentAnswer;$('skip').onclick=()=>finish(false,true);$('next').onclick=()=>{choose();render()};$('answer').addEventListener('keydown',e=>{if(e.key==='Enter'&&!answered)$('check').click()});$('mode').onchange=()=>{choose();render()};
 document.querySelectorAll('[data-upgrade]').forEach(b=>b.onclick=()=>{let k=+b.dataset.upgrade,unlock=[10,50,150][k],base=[50,150,400][k],cost=base*(S.upgrades[k]+1);if(S.work>=unlock&&S.points>=cost){S.points-=cost;S.upgrades[k]++;save();stats()}});
 $('showDict').onclick=()=>{$('dictPanel').classList.remove('hidden');drawDict()};$('hideDict').onclick=()=>$('dictPanel').classList.add('hidden');$('dictSearch').oninput=drawDict;
 function drawDict(){let q=norm($('dictSearch').value);let rows=WORDS.filter(x=>{let d=S.words[x.w];return d&&d.answers&&d.answers.length&&(norm(x.w).includes(q)||norm(x.m).includes(q)||d.answers.some(a=>norm(a).includes(q)))});$('dictionary').innerHTML=rows.length?rows.map(x=>`<div><b>${esc(x.w)}</b> — ${esc(x.m)}<br><span class="muted">君の正解候補：${x.answers?esc(x.answers.join(' / ')):esc((S.words[x.w].answers||[]).join(' / '))}　| 正解 ${S.words[x.w].correct} / 不正解 ${S.words[x.w].wrong}</span></div>`).join(''):'まだ登録された回答がないか、検索結果がありません。正解すると自動登録されます。'}
