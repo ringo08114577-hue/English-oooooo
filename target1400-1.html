@@ -174,7 +174,7 @@ function targetRange(){
 function poolFor(kind){
   const base=targetRange();let pool=base;
   if(kind==='weak')pool=base.filter(w=>weakScore(w)>0).sort((a,b)=>weakScore(b)-weakScore(a));
-  if(kind==='unseen')pool=base.filter(w=>!S.words[w.w]);
+  if(kind==='unseen')pool=base.filter(w=>{const d=S.words[w.w];return !d||(!d.correct&&!d.wrong);});
   if(kind==='due')pool=base.filter(w=>S.words[w.w]&&S.words[w.w].due&&S.words[w.w].due<=now());
   if(!pool.length&&kind==='due')pool=base.filter(w=>weakScore(w)>0);
   if(!pool.length&&kind==='weak')pool=base.filter(w=>!S.words[w.w]);
@@ -198,9 +198,9 @@ function showTab(tab){
 }
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 function updateHeader(){
-  const seen=Object.keys(S.words).length;
+  const seen=WORDS.filter(w=>S.words[w.w]&&((S.words[w.w].correct||0)+(S.words[w.w].wrong||0)>0)).length;
   const mastered=WORDS.filter(w=>S.words[w.w]&&S.words[w.w].level>=3).length;
-  const due=WORDS.filter(w=>S.words[w.w]&&S.words[w.w].due&&S.words[w.w].due<=now()).length;
+  const due=WORDS.filter(w=>S.words[w.w]&&((S.words[w.w].correct||0)+(S.words[w.w].wrong||0)>0)&&S.words[w.w].due&&S.words[w.w].due<=now()).length;
   $('seenCount').textContent=seen;$('accuracy').textContent=S.attempts?Math.round(S.correct/S.attempts*100)+'%':'0%';
   $('attemptCount').textContent=S.attempts+'回回答';$('masteredCount').textContent=mastered;$('dueCount').textContent=due;
 }
@@ -260,16 +260,16 @@ $('applyRange').onclick=()=>{targetRange();newQuestion();};
 $('pool').onchange=()=>newQuestion();
 $('saveMemo').onclick=()=>{if(!current)return;wordRecord(current.w).note=$('wordMemo').value;save();$('saveMemo').textContent='保存したよ ✓';setTimeout(()=>{$('saveMemo').textContent='メモを保存';},1200);};
 
-function chooseListen(){
+function chooseListen(autoSpeak){
   const pool=poolFor($('listenPool').value);listenCurrent=pool[Math.floor(Math.random()*pool.length)];
   listenPhase='asking';$('lNo').textContent=listenCurrent.n;$('listenWord').textContent='？？？';$('listenWord').classList.remove('hidden-word');
   $('spellingInput').value='';$('spellingInput').disabled=false;$('checkSpelling').disabled=false;
   $('spellingReveal').classList.add('hidden');$('spellingRate').classList.add('hidden');$('nextListen').classList.add('hidden');
   $('listenMessage').textContent='音声を聞いて、つづりを入力しよう。';$('listenMessage').className='message';
   $('spellGood').disabled=false;$('spellBad').disabled=false;
-  speak(listenCurrent.w,.88);
+  if(autoSpeak!==false)speak(listenCurrent.w,.88);
 }
-$('startListen').onclick=chooseListen;$('listenPlay').onclick=()=>listenCurrent&&speak(listenCurrent.w,.9);$('listenSlow').onclick=()=>listenCurrent&&speak(listenCurrent.w,.68);
+$('startListen').onclick=()=>chooseListen(true);$('listenPlay').onclick=()=>listenCurrent&&speak(listenCurrent.w,.9);$('listenSlow').onclick=()=>listenCurrent&&speak(listenCurrent.w,.68);
 function revealSpelling(){if(!listenCurrent||listenPhase!=='asking')return;listenPhase='revealed';$('listenWord').textContent=listenCurrent.w;$('spellingReveal').textContent=listenCurrent.m;$('spellingReveal').classList.remove('hidden');$('spellingRate').classList.remove('hidden');}
 $('revealSpelling').onclick=revealSpelling;
 $('checkSpelling').onclick=()=>{
@@ -286,7 +286,7 @@ $('checkSpelling').onclick=()=>{
 };
 $('spellGood').onclick=()=>{if(listenCurrent&&listenPhase==='revealed'){finish(listenCurrent,true,'spell');$('spellBad').disabled=true;$('listenWord').textContent=listenCurrent.w;$('spellingInput').disabled=true;$('checkSpelling').disabled=true;$('nextListen').classList.remove('hidden');}};
 $('spellBad').onclick=()=>{if(listenCurrent&&listenPhase==='revealed'){finish(listenCurrent,false,'spell');$('spellGood').disabled=true;$('listenWord').textContent=listenCurrent.w;$('spellingInput').disabled=true;$('checkSpelling').disabled=true;$('nextListen').classList.remove('hidden');}};
-$('nextListen').onclick=chooseListen;$('spellingInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('checkSpelling').click();});
+$('nextListen').onclick=()=>chooseListen(true);$('spellingInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('checkSpelling').click();});
 
 function loadCardDeck(){
   const a=Math.max(1,Math.min(1400,Number($('cardStart').value)||1));
@@ -329,7 +329,7 @@ $('reviewSort').onchange=drawReview;
 $('reviewStart').onclick=()=>{showTab('study');$('pool').value='weak';newQuestion();};
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function drawRecords(){
-  const seen=Object.keys(S.words).length;const mastered=WORDS.filter(w=>S.words[w.w]&&S.words[w.w].level>=3).length;const weak=WORDS.filter(w=>weakScore(w)>0).length;
+  const seen=WORDS.filter(w=>S.words[w.w]&&((S.words[w.w].correct||0)+(S.words[w.w].wrong||0)>0)).length;const mastered=WORDS.filter(w=>S.words[w.w]&&S.words[w.w].level>=3).length;const weak=WORDS.filter(w=>weakScore(w)>0).length;
   $('rAttempts').textContent=S.attempts;$('rStreak').textContent=S.streak;$('rWeak').textContent=weak;$('rPoints').textContent=S.points;
   $('seenPercent').textContent=Math.round(seen/1400*100)+'%';$('seenBar').style.width=(seen/1400*100)+'%';
   $('masteredPercent').textContent=Math.round(mastered/1400*100)+'%';$('masteredBar').style.width=(mastered/1400*100)+'%';
@@ -348,13 +348,13 @@ $('importDataFile').onchange=async e=>{
   e.target.value='';
 };
 $('pool').onchange=()=>newQuestion();
-$('listenPool').onchange=()=>chooseListen();
+$('listenPool').onchange=()=>chooseListen(true);
 $('rangeStart').onchange=targetRange;$('rangeEnd').onchange=targetRange;
 
 updateHeader();
 newQuestion();
 loadCardDeck();
-chooseListen();
+chooseListen(false);
 </script>
 </body>
 </html>
