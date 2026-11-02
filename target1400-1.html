@@ -52,7 +52,7 @@
     </div>
     <div id="meaningReveal" class="reveal hidden"></div>
     <div id="selfRate" class="rating hidden"><button id="markGood" class="green">思い出せた <kbd>1</kbd></button><button id="markBad" class="danger">まだあやふや <kbd>2</kbd></button></div>
-    <div class="hint" style="text-align:center">キー操作：<kbd>Shift</kbd> + <kbd>1</kbd> 思い出せた　<kbd>Shift</kbd> + <kbd>2</kbd> まだあやふや　<kbd>Shift</kbd> + <kbd>Space</kbd> 次の単語</div>
+    <div class="hint" style="text-align:center">キー操作：<kbd>Alt</kbd> + <kbd>J</kbd> 思い出せた　<kbd>Alt</kbd> + <kbd>K</kbd> まだあやふや　<kbd>Alt</kbd> + <kbd>L</kbd> 次の単語（Shift＋数字/Spaceも可）</div>
     <div id="message" class="message" aria-live="polite"></div>
     <div class="next-row"><button id="nextQuestion" class="primary hidden">次の単語 →</button></div>
     <div class="memo">
@@ -97,7 +97,7 @@
     <div class="rating"><button id="cardKnow" class="green">思い出せた <kbd>1</kbd></button><button id="cardUnclear" class="danger">まだあやふや <kbd>2</kbd></button></div>
     <div id="cardMessage" class="message" aria-live="polite"></div>
     <div class="next-row"><button id="cardNext" class="primary">次の単語 <kbd>Space</kbd> →</button></div>
-    <div class="hint" style="text-align:center">キー操作：<kbd>Shift</kbd> + <kbd>1</kbd> 思い出せた　<kbd>Shift</kbd> + <kbd>2</kbd> まだあやふや　<kbd>Shift</kbd> + <kbd>Space</kbd> 次の単語</div>
+    <div class="hint" style="text-align:center">キー操作：<kbd>Alt</kbd> + <kbd>J</kbd> 思い出せた　<kbd>Alt</kbd> + <kbd>K</kbd> まだあやふや　<kbd>Alt</kbd> + <kbd>L</kbd> 次の単語（Shift＋数字/Spaceも可）</div>
   </div>
   <p class="notice">赤シート練習のコツ：英単語を見たら、意味を表示する前に必ず一度、自分で答えを思い出してみよう。</p>
 </section>
@@ -317,23 +317,27 @@ function nextCard(){cardPos++;renderCard();updateHeader();}
 $('loadCards').onclick=loadCardDeck;$('cardNext').onclick=nextCard;
 $('toggleCardMeaning').onclick=()=>{$('cardMeaning').classList.toggle('hidden');$('toggleCardMeaning').textContent=$('cardMeaning').classList.contains('hidden')?'日本語を表示':'日本語を隠す';};
 $('fontDown').onclick=()=>{cardFont=Math.max(.75,cardFont-.1);renderCard();};$('fontUp').onclick=()=>{cardFont=Math.min(1.4,cardFont+.1);renderCard();};
-document.addEventListener('keydown',e=>{
-  if(e.repeat||e.altKey||e.ctrlKey||e.metaKey)return;
-  // Shiftを押しながらなら、入力欄にカーソルがあってもショートカットを実行する。
-  if(!e.shiftKey)return;
-  const key1=e.code==='Digit1'||e.code==='Numpad1';
-  const key2=e.code==='Digit2'||e.code==='Numpad2';
-  const space=e.code==='Space';
+window.addEventListener('keydown',e=>{
+  if(e.repeat||e.ctrlKey||e.metaKey)return;
+  // Shift+数字/Spaceに加えて、Alt+J/K/Lでも操作できるようにする。
+  // capture=true で入力欄や日本語IMEより先にキーを受け取る。
+  const key1=(e.code==='Digit1'||e.code==='Numpad1'||e.key==='!');
+  const key2=(e.code==='Digit2'||e.code==='Numpad2'||e.key==='"');
+  const nextKey=e.code==='Space'||e.code==='Digit3'||e.key===' ';
+  const remember=(e.shiftKey&&key1)||(e.altKey&&(e.code==='KeyJ'||e.key.toLowerCase()==='j'));
+  const unclear=(e.shiftKey&&key2)||(e.altKey&&(e.code==='KeyK'||e.key.toLowerCase()==='k'));
+  const advance=(e.shiftKey&&e.code==='Space')||(e.altKey&&(e.code==='KeyL'||e.key.toLowerCase()==='l'));
+  if(!remember&&!unclear&&!advance)return;
   if(activeTab==='cards'){
-    if(key1&&!cardRated){e.preventDefault();$('cardKnow').click();}
-    else if(key2&&!cardRated){e.preventDefault();$('cardUnclear').click();}
-    else if(space){e.preventDefault();$('cardNext').click();}
+    if(remember&&!cardRated){e.preventDefault();e.stopPropagation();$('cardKnow').click();}
+    else if(unclear&&!cardRated){e.preventDefault();e.stopPropagation();$('cardUnclear').click();}
+    else if(advance){e.preventDefault();e.stopPropagation();$('cardNext').click();}
   }else if(activeTab==='study'){
-    if(key1&&!$('selfRate').classList.contains('hidden')&&!$('markGood').disabled){e.preventDefault();$('markGood').click();}
-    else if(key2&&!$('selfRate').classList.contains('hidden')&&!$('markBad').disabled){e.preventDefault();$('markBad').click();}
-    else if(space&&!$('nextQuestion').classList.contains('hidden')){e.preventDefault();$('nextQuestion').click();}
+    if(remember&&!$('selfRate').classList.contains('hidden')&&!$('markGood').disabled){e.preventDefault();e.stopPropagation();$('markGood').click();}
+    else if(unclear&&!$('selfRate').classList.contains('hidden')&&!$('markBad').disabled){e.preventDefault();e.stopPropagation();$('markBad').click();}
+    else if(advance&&!$('nextQuestion').classList.contains('hidden')){e.preventDefault();e.stopPropagation();$('nextQuestion').click();}
   }
-});
+},true);
 
 function drawReview(){
   const due=WORDS.filter(w=>S.words[w.w]&&S.words[w.w].due&&S.words[w.w].due<=now());
