@@ -124,7 +124,7 @@
   <p class="notice">データはこのブラウザ内に保存されるよ。別の端末へ移すときは「書き出す」→新しい端末で「読み込む」を使ってね。</p>
 </section>
 
-<p class="hint" style="text-align:center;margin-top:20px">音声はこのブラウザの音声読み上げ機能を使用します。声の種類や品質は端末によって異なります。</p>
+<p class="hint" style="text-align:center;margin-top:20px">音声はこのブラウザの読み上げ機能を使います。声の種類や品質は端末によって異なります。<br>より正確な音声は <a href="https://www.obunsha.co.jp/support/tokuten/3" target="_blank" rel="noopener" style="color:#8fc4ff">旺文社のTARGET 1400公式音声</a> も利用できます。</p>
 </div>
 
 <script>
@@ -284,8 +284,8 @@ $('checkSpelling').onclick=()=>{
     revealSpelling();$('listenMessage').textContent='つづりを確認して、もう一度見てみよう。';$('listenMessage').className='message bad';
   }
 };
-$('spellGood').onclick=()=>{if(listenCurrent&&listenPhase==='revealed'){finish(listenCurrent,true,'spell');$('spellBad').disabled=true;$('listenWord').textContent=listenCurrent.w;$('spellingInput').disabled=true;$('checkSpelling').disabled=true;$('nextListen').classList.remove('hidden');}};
-$('spellBad').onclick=()=>{if(listenCurrent&&listenPhase==='revealed'){finish(listenCurrent,false,'spell');$('spellGood').disabled=true;$('listenWord').textContent=listenCurrent.w;$('spellingInput').disabled=true;$('checkSpelling').disabled=true;$('nextListen').classList.remove('hidden');}};
+$('spellGood').onclick=()=>{if(listenCurrent&&listenPhase==='revealed'){finish(listenCurrent,true,'spell');$('spellBad').disabled=true;$('listenWord').textContent=listenCurrent.w;$('spellingInput').disabled=true;$('checkSpelling').disabled=true;$('nextListen').classList.remove('hidden');$('listenMessage').textContent='✅ 正解として記録したよ。';$('listenMessage').className='message good';}};
+$('spellBad').onclick=()=>{if(listenCurrent&&listenPhase==='revealed'){finish(listenCurrent,false,'spell');$('spellGood').disabled=true;$('listenWord').textContent=listenCurrent.w;$('spellingInput').disabled=true;$('checkSpelling').disabled=true;$('nextListen').classList.remove('hidden');$('listenMessage').textContent='📌 復習する単語として記録したよ。';$('listenMessage').className='message bad';}};
 $('nextListen').onclick=()=>chooseListen(true);$('spellingInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('checkSpelling').click();});
 
 function loadCardDeck(){
