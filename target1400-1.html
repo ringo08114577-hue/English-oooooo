@@ -159,7 +159,7 @@ function loadState(){
   }catch(e){return blankState();}
 }
 let S=loadState();
-let current=null, listenCurrent=null, cardPool=[], cardPos=0, cardFont=1, phase='asking', listenPhase='asking', sessionCount=0, activeTab='study', cardRated=false;
+let current=null, listenCurrent=null, cardPool=[], cardPos=0, cardFont=1, phase='asking', listenPhase='asking', sessionCount=0, activeTab='study', cardRated=false, studyQuestionInitialized=false;
 function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(S));}catch(e){$('saveTag')&&($('saveTag').textContent='保存容量を確認');}}
 function wordRecord(w){
   if(!S.words[w])S.words[w]={correct:0,wrong:0,level:0,due:0,last:0,answers:[],note:''};
@@ -211,12 +211,15 @@ function updateHeader(){
 }
 function updateMemo(){const d=current?wordRecord(current.w):null;$('wordMemo').value=d?d.note:'';}
 function setQuestion(w){
+  const shouldFocus=studyQuestionInitialized;
+  studyQuestionInitialized=true;
   current=w;phase='asking';$('qNo').textContent=w.n;$('qWord').textContent=w.w;$('qKana').textContent='カタカナ発音（目安）：'+KANA[w.n-1];$('qWord').classList.remove('hidden-word');
   $('qStatus').textContent=$('pool').selectedOptions[0].textContent;
   $('meaningInput').value='';$('meaningInput').disabled=false;$('checkMeaning').disabled=false;
   $('meaningReveal').classList.add('hidden');$('selfRate').classList.add('hidden');$('nextQuestion').classList.add('hidden');
   $('message').textContent='';$('message').className='message';
   const d=wordRecord(w.w);$('wordMemo').value=d.note;
+  if(shouldFocus)$('meaningInput').focus();
   if($('autoPlay')&&$('autoPlay').checked)speak(w.w,.9);
 }
 function newQuestion(forced){
@@ -315,8 +318,10 @@ $('loadCards').onclick=loadCardDeck;$('cardNext').onclick=nextCard;
 $('toggleCardMeaning').onclick=()=>{$('cardMeaning').classList.toggle('hidden');$('toggleCardMeaning').textContent=$('cardMeaning').classList.contains('hidden')?'日本語を表示':'日本語を隠す';};
 $('fontDown').onclick=()=>{cardFont=Math.max(.75,cardFont-.1);renderCard();};$('fontUp').onclick=()=>{cardFont=Math.min(1.4,cardFont+.1);renderCard();};
 document.addEventListener('keydown',e=>{
-  if(e.isComposing||e.repeat||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;
-  if(e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable="true"]'))return;
+  if(e.isComposing||e.repeat||e.altKey||e.metaKey||e.shiftKey)return;
+  const typing=!!(e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable="true"]'));
+  // Ctrlを押しながらなら、文字入力欄にカーソルがあってもショートカットを使える。
+  if(typing&&!e.ctrlKey)return;
   if(activeTab==='cards'){
     if(e.key==='1'&&!cardRated){e.preventDefault();$('cardKnow').click();}
     else if(e.key==='2'&&!cardRated){e.preventDefault();$('cardUnclear').click();}
