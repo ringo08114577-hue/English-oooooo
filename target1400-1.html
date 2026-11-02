@@ -52,7 +52,7 @@
     </div>
     <div id="meaningReveal" class="reveal hidden"></div>
     <div id="selfRate" class="rating hidden"><button id="markGood" class="green">思い出せた <kbd>1</kbd></button><button id="markBad" class="danger">まだあやふや <kbd>2</kbd></button></div>
-    <div class="hint" style="text-align:center">キー操作：<kbd>1</kbd> 思い出せた　<kbd>2</kbd> まだあやふや　<kbd>Space</kbd> 次の単語</div>
+    <div class="hint" style="text-align:center">キー操作：<kbd>Shift</kbd> + <kbd>1</kbd> 思い出せた　<kbd>Shift</kbd> + <kbd>2</kbd> まだあやふや　<kbd>Shift</kbd> + <kbd>Space</kbd> 次の単語</div>
     <div id="message" class="message" aria-live="polite"></div>
     <div class="next-row"><button id="nextQuestion" class="primary hidden">次の単語 →</button></div>
     <div class="memo">
@@ -97,7 +97,7 @@
     <div class="rating"><button id="cardKnow" class="green">思い出せた <kbd>1</kbd></button><button id="cardUnclear" class="danger">まだあやふや <kbd>2</kbd></button></div>
     <div id="cardMessage" class="message" aria-live="polite"></div>
     <div class="next-row"><button id="cardNext" class="primary">次の単語 <kbd>Space</kbd> →</button></div>
-    <div class="hint" style="text-align:center">キー操作：<kbd>1</kbd> 思い出せた　<kbd>2</kbd> まだあやふや　<kbd>Space</kbd> 次の単語</div>
+    <div class="hint" style="text-align:center">キー操作：<kbd>Shift</kbd> + <kbd>1</kbd> 思い出せた　<kbd>Shift</kbd> + <kbd>2</kbd> まだあやふや　<kbd>Shift</kbd> + <kbd>Space</kbd> 次の単語</div>
   </div>
   <p class="notice">赤シート練習のコツ：英単語を見たら、意味を表示する前に必ず一度、自分で答えを思い出してみよう。</p>
 </section>
@@ -318,18 +318,20 @@ $('loadCards').onclick=loadCardDeck;$('cardNext').onclick=nextCard;
 $('toggleCardMeaning').onclick=()=>{$('cardMeaning').classList.toggle('hidden');$('toggleCardMeaning').textContent=$('cardMeaning').classList.contains('hidden')?'日本語を表示':'日本語を隠す';};
 $('fontDown').onclick=()=>{cardFont=Math.max(.75,cardFont-.1);renderCard();};$('fontUp').onclick=()=>{cardFont=Math.min(1.4,cardFont+.1);renderCard();};
 document.addEventListener('keydown',e=>{
-  if(e.isComposing||e.repeat||e.altKey||e.metaKey||e.shiftKey)return;
-  const typing=!!(e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable="true"]'));
-  // Ctrlを押しながらなら、文字入力欄にカーソルがあってもショートカットを使える。
-  if(typing&&!e.ctrlKey)return;
+  if(e.repeat||e.altKey||e.ctrlKey||e.metaKey)return;
+  // Shiftを押しながらなら、入力欄にカーソルがあってもショートカットを実行する。
+  if(!e.shiftKey)return;
+  const key1=e.code==='Digit1'||e.code==='Numpad1';
+  const key2=e.code==='Digit2'||e.code==='Numpad2';
+  const space=e.code==='Space';
   if(activeTab==='cards'){
-    if(e.key==='1'&&!cardRated){e.preventDefault();$('cardKnow').click();}
-    else if(e.key==='2'&&!cardRated){e.preventDefault();$('cardUnclear').click();}
-    else if(e.code==='Space'||e.key===' '){e.preventDefault();$('cardNext').click();}
+    if(key1&&!cardRated){e.preventDefault();$('cardKnow').click();}
+    else if(key2&&!cardRated){e.preventDefault();$('cardUnclear').click();}
+    else if(space){e.preventDefault();$('cardNext').click();}
   }else if(activeTab==='study'){
-    if(e.key==='1'&&!$('selfRate').classList.contains('hidden')&&!$('markGood').disabled){e.preventDefault();$('markGood').click();}
-    else if(e.key==='2'&&!$('selfRate').classList.contains('hidden')&&!$('markBad').disabled){e.preventDefault();$('markBad').click();}
-    else if((e.code==='Space'||e.key===' ')&&!$('nextQuestion').classList.contains('hidden')){e.preventDefault();$('nextQuestion').click();}
+    if(key1&&!$('selfRate').classList.contains('hidden')&&!$('markGood').disabled){e.preventDefault();$('markGood').click();}
+    else if(key2&&!$('selfRate').classList.contains('hidden')&&!$('markBad').disabled){e.preventDefault();$('markBad').click();}
+    else if(space&&!$('nextQuestion').classList.contains('hidden')){e.preventDefault();$('nextQuestion').click();}
   }
 });
 
