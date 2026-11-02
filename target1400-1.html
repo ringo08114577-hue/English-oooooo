@@ -253,6 +253,8 @@ $('checkMeaning').onclick=()=>{
   if(phase!=='asking'||!current)return;
   const input=norm($('meaningInput').value);
   if(!input){$('message').textContent='意味を入力してから答え合わせしよう。';$('message').className='message bad';return;}
+  // 答え合わせ後は入力欄からフォーカスを外す（正解・不正解どちらも）。
+  $('meaningInput').blur();
   const d=wordRecord(current.w);const candidates=current.m.split(/[、,，\\/；;]/).concat(d.answers);
   const ok=candidates.some(v=>{const c=norm(v);return c&&(input===c||(input.length>=2&&(c.includes(input)||input.includes(c))));});
   if(ok){$('meaningReveal').textContent=current.m;$('meaningReveal').classList.remove('hidden');$('showMeaning').disabled=true;finish(current,true,'meaning');}
