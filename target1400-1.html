@@ -261,8 +261,8 @@ $('checkMeaning').onclick=()=>{
   else{phase='revealed';$('meaningReveal').textContent=current.m;$('meaningReveal').classList.remove('hidden');$('selfRate').classList.remove('hidden');$('checkMeaning').disabled=true;$('showMeaning').disabled=true;$('message').textContent='入力した答えは登録された意味と一致しなかったよ。確認して判定しよう。';$('message').className='message bad';}
 };
 $('showMeaning').onclick=revealMeaning;
-$('markGood').onclick=()=>{if(current&&phase==='revealed'){finish(current,true,'meaning');$('markBad').disabled=true;}};
-$('markBad').onclick=()=>{if(current&&phase==='revealed'){finish(current,false,'meaning');$('markGood').disabled=true;}};
+$('markGood').onclick=()=>{if(current&&phase==='revealed'){finish(current,true,'meaning');$('markBad').disabled=true;$('meaningInput').blur();}};
+$('markBad').onclick=()=>{if(current&&phase==='revealed'){finish(current,false,'meaning');$('markGood').disabled=true;$('meaningInput').blur();}};
 $('nextQuestion').onclick=()=>{$('showMeaning').disabled=false;$('markGood').disabled=false;$('markBad').disabled=false;newQuestion();};
 $('meaningInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('checkMeaning').click();});
 $('playNormal').onclick=()=>current&&speak(current.w,.92);$('playSlow').onclick=()=>current&&speak(current.w,.68);
