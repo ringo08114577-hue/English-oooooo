@@ -40,6 +40,7 @@
     <button id="applyRange" class="subtle">範囲を適用</button>
   </div>
   <div class="range-note" id="rangeLabel">対象：1〜1400番</div>
+  <p class="hint">未挑戦モードでは、意味当て・音からつづり・赤シートで判定した単語を共通で除外します。対象範囲を一巡すると終了し、既習単語には戻りません。</p>
   <div class="question">
     <div class="qmeta"><span>No. <b id="qNo">—</b> / 1400</span><span id="qStatus">ランダム出題</span></div>
     <div class="word" id="qWord">準備中…</div><div class="pronunciation" id="qKana">カタカナ発音（目安）：—</div>
@@ -176,14 +177,19 @@ function targetRange(){
   $('rangeStart').value=a;$('rangeEnd').value=b;$('rangeLabel').textContent='対象：'+a+'〜'+b+'番（'+(b-a+1)+'語）';
   return WORDS.filter(w=>w.n>=a&&w.n<=b);
 }
+function wasAttempted(w){
+  const d=S.words[w.w];
+  return !!(d&&((Number(d.correct)||0)+(Number(d.wrong)||0)>0||(Number(d.last)||0)>0));
+}
 function poolFor(kind){
   const base=targetRange();let pool=base;
   if(kind==='weak')pool=base.filter(w=>weakScore(w)>0).sort((a,b)=>weakScore(b)-weakScore(a));
-  if(kind==='unseen')pool=base.filter(w=>{const d=S.words[w.w];return !d||(!d.correct&&!d.wrong);});
+  if(kind==='unseen')pool=base.filter(w=>!wasAttempted(w));
   if(kind==='due')pool=base.filter(w=>S.words[w.w]&&S.words[w.w].due&&S.words[w.w].due<=now());
   if(!pool.length&&kind==='due')pool=base.filter(w=>weakScore(w)>0);
   if(!pool.length&&kind==='weak')pool=base.filter(w=>!S.words[w.w]);
-  if(!pool.length)pool=base;
+  // 未挑戦モードだけは、0語になっても全単語へ戻さない。
+  if(!pool.length&&kind!=='unseen')pool=base;
   return pool;
 }
 function speak(w,rate){
@@ -216,16 +222,31 @@ function setQuestion(w){
   current=w;phase='asking';$('qNo').textContent=w.n;$('qWord').textContent=w.w;$('qKana').textContent='カタカナ発音（目安）：'+KANA[w.n-1];$('qWord').classList.remove('hidden-word');
   $('qStatus').textContent=$('pool').selectedOptions[0].textContent;
   $('meaningInput').value='';$('meaningInput').disabled=false;$('checkMeaning').disabled=false;
+  $('showMeaning').disabled=false;$('markGood').disabled=false;$('markBad').disabled=false;
   $('meaningReveal').classList.add('hidden');$('selfRate').classList.add('hidden');$('nextQuestion').classList.add('hidden');
   $('message').textContent='';$('message').className='message';
   const d=wordRecord(w.w);$('wordMemo').value=d.note;
   if(shouldFocus)$('meaningInput').focus();
   if($('autoPlay')&&$('autoPlay').checked)speak(w.w,.9);
 }
+function showNoUnseen(){
+  current=null;phase='finished';
+  $('qNo').textContent='—';$('qWord').textContent='未挑戦の単語はありません';$('qKana').textContent='';
+  $('qStatus').textContent='未挑戦単語 0語';
+  $('meaningInput').value='';$('meaningInput').disabled=true;$('checkMeaning').disabled=true;
+  $('showMeaning').disabled=true;$('markGood').disabled=true;$('markBad').disabled=true;
+  $('meaningReveal').classList.add('hidden');$('selfRate').classList.add('hidden');$('nextQuestion').classList.add('hidden');
+  $('message').textContent='この範囲の未挑戦単語はすべて終わったよ。範囲を広げるか、「全単語からランダム」に切り替えてね。';
+  $('message').className='message good';$('wordMemo').value='';
+}
 function newQuestion(forced){
   const kind=$('pool').value;let w=forced;
-  if(!w){const pool=poolFor(kind);w=pool[Math.floor(Math.random()*pool.length)];}
-  setQuestion(w);
+  if(!w){
+    const pool=poolFor(kind);
+    if(!pool.length&&kind==='unseen'){showNoUnseen();return;}
+    w=pool[Math.floor(Math.random()*pool.length)];
+  }
+  if(w)setQuestion(w);
 }
 function revealMeaning(){
   if(phase!=='asking')return;phase='revealed';
@@ -271,9 +292,20 @@ $('pool').onchange=()=>newQuestion();
 $('saveMemo').onclick=()=>{if(!current)return;wordRecord(current.w).note=$('wordMemo').value;save();$('saveMemo').textContent='保存したよ ✓';setTimeout(()=>{$('saveMemo').textContent='メモを保存';},1200);};
 
 function chooseListen(autoSpeak){
-  const pool=poolFor($('listenPool').value);listenCurrent=pool[Math.floor(Math.random()*pool.length)];
+  const pool=poolFor($('listenPool').value);
+  if(!pool.length&&$('listenPool').value==='unseen'){
+    listenCurrent=null;listenPhase='finished';$('lNo').textContent='—';
+    $('listenWord').textContent='未挑戦の単語はありません';$('listenKana').textContent='';$('listenKana').classList.add('hidden');
+    $('spellingInput').value='';$('spellingInput').disabled=true;$('checkSpelling').disabled=true;$('revealSpelling').disabled=true;
+    $('spellingReveal').classList.add('hidden');$('spellingRate').classList.add('hidden');$('nextListen').classList.add('hidden');
+    $('spellGood').disabled=true;$('spellBad').disabled=true;
+    $('listenMessage').textContent='未挑戦単語はすべて終わったよ。意味当て・赤シートで判定した単語も共通で除外されるよ。';
+    $('listenMessage').className='message good';return;
+  }
+  listenCurrent=pool[Math.floor(Math.random()*pool.length)];
+  if(!listenCurrent)return;
   listenPhase='asking';$('lNo').textContent=listenCurrent.n;$('listenWord').textContent='？？？';$('listenKana').textContent='';$('listenKana').classList.add('hidden');$('listenWord').classList.remove('hidden-word');
-  $('spellingInput').value='';$('spellingInput').disabled=false;$('checkSpelling').disabled=false;
+  $('spellingInput').value='';$('spellingInput').disabled=false;$('checkSpelling').disabled=false;$('revealSpelling').disabled=false;
   $('spellingReveal').classList.add('hidden');$('spellingRate').classList.add('hidden');$('nextListen').classList.add('hidden');
   $('listenMessage').textContent='音声を聞いて、つづりを入力しよう。';$('listenMessage').className='message';
   $('spellGood').disabled=false;$('spellBad').disabled=false;
