@@ -85,7 +85,7 @@
 <section id="cardsPanel" class="panel hidden">
   <div class="toolbar"><div><h2 class="section-title">赤シート式・単語帳</h2><div class="hint">日本語の意味を隠して、見て、答えて、確認する。</div></div><div class="actions"><button id="fontDown" class="small-btn subtle">文字を小さく</button><button id="fontUp" class="small-btn subtle">文字を大きく</button></div></div>
   <div class="filters">
-    <div class="field"><label for="cardPool">表示順</label><select id="cardPool"><option value="random">ランダム</option><option value="number">番号順</option><option value="weak">苦手優先</option></select></div>
+    <div class="field"><label for="cardPool">表示順</label><select id="cardPool"><option value="random">ランダム</option><option value="number">番号順</option><option value="weak">苦手優先</option><option value="unseen">未挑戦だけ</option></select></div>
     <div class="field range"><label for="cardStart">最初の番号</label><input id="cardStart" type="number" min="1" max="1400" value="1"></div>
     <div class="field range"><label for="cardEnd">最後の番号</label><input id="cardEnd" type="number" min="1" max="1400" value="1400"></div>
     <button id="loadCards" class="subtle">表示</button>
@@ -104,12 +104,12 @@
 </section>
 
 <section id="reviewPanel" class="panel hidden">
-  <div class="toolbar"><div><h2 class="section-title">苦手な単語・復習する単語</h2><div class="hint">間違いが多い単語と、復習時期が来た単語をまとめたよ。</div></div><button id="reviewStart" class="primary">復習を始める</button></div>
+  <div class="toolbar"><div><h2 class="section-title">苦手な単語・復習する単語</h2><div class="hint">復習期限が来た単語を先に、その後に苦手度の高い単語を表示するよ。復習開始後もこの順番で一問ずつ進む。</div></div><button id="reviewStart" class="primary">復習を始める</button></div>
   <div class="grid2">
     <div class="panel"><div class="muted">今日が復習予定</div><div class="kpi" id="reviewDue">0</div></div>
     <div class="panel"><div class="muted">苦手として記録</div><div class="kpi" id="reviewWeak">0</div></div>
   </div>
-  <div class="filters"><div class="field"><label for="reviewSort">表示順</label><select id="reviewSort"><option value="weak">苦手度が高い順</option><option value="due">復習予定が早い順</option><option value="number">番号順</option></select></div></div>
+  <div class="filters"><div class="field"><label for="reviewSort">表示順</label><select id="reviewSort"><option value="priority">復習優先度順</option><option value="due">復習予定が早い順</option><option value="weak">苦手度が高い順</option><option value="number">番号順</option></select></div></div>
   <div id="reviewList" class="list"></div>
 </section>
 
@@ -161,15 +161,24 @@ function loadState(){
 }
 let S=loadState();
 let current=null, listenCurrent=null, cardPool=[], cardPos=0, cardFont=1, phase='asking', listenPhase='asking', sessionCount=0, activeTab='study', cardRated=false, studyQuestionInitialized=false;
+let studySeenThisRun=new Set(),listenSeenThisRun=new Set(),reviewQueue=[],reviewQueueIndex=0,reviewMode=false;
 function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(S));}catch(e){$('saveTag')&&($('saveTag').textContent='保存容量を確認');}}
 function wordRecord(w){
-  if(!S.words[w])S.words[w]={correct:0,wrong:0,level:0,due:0,last:0,answers:[],note:''};
+  if(!S.words[w])S.words[w]={correct:0,wrong:0,attempts:0,wrongStreak:0,level:0,due:0,last:0,lastWrong:0,lastCorrect:0,answers:[],note:''};
   const d=S.words[w];d.correct=Number(d.correct)||0;d.wrong=Number(d.wrong)||0;d.level=Number(d.level)||0;d.due=Number(d.due)||0;d.last=Number(d.last)||0;
+  d.attempts=Math.max(Number(d.attempts)||0,d.correct+d.wrong,d.last?1:0);
+  if(!Number.isFinite(Number(d.wrongStreak)))d.wrongStreak=Math.max(0,d.wrong-d.correct);
+  else d.wrongStreak=Math.max(0,Number(d.wrongStreak)||0);
+  d.lastWrong=Number(d.lastWrong)||0;d.lastCorrect=Number(d.lastCorrect)||0;
   if(!Array.isArray(d.answers))d.answers=[];if(typeof d.note!=='string')d.note='';
   return d;
 }
 function norm(s){return String(s||'').toLowerCase().normalize('NFKC').replace(/[ 　\t\n、。,.，．・：:「」『』（）()]/g,'').replace(/(する|した|して|します|こと|もの|を|が|は|に|へ|と|で|の)$/g,'');}
-function weakScore(w){const d=S.words[w.w];if(!d)return 0;return d.wrong*3-d.correct+(d.level===0&&d.wrong>0?2:0);}
+function weakScore(w){
+  const d=S.words[w.w];if(!d)return 0;
+  const r=wordRecord(w.w);
+  return r.wrongStreak*4+(r.wrongStreak>0&&r.level===0?2:0);
+}
 function targetRange(){
   let a=Math.max(1,Math.min(1400,Number($('rangeStart').value)||1));
   let b=Math.max(1,Math.min(1400,Number($('rangeEnd').value)||1400));
@@ -179,18 +188,15 @@ function targetRange(){
 }
 function wasAttempted(w){
   const d=S.words[w.w];
-  return !!(d&&((Number(d.correct)||0)+(Number(d.wrong)||0)>0||(Number(d.last)||0)>0));
+  if(d&&((Number(d.attempts)||0)>0||(Number(d.correct)||0)+(Number(d.wrong)||0)>0||(Number(d.last)||0)>0))return true;
+  return Array.isArray(S.history)&&S.history.some(h=>h&&h.word===w.w);
 }
 function poolFor(kind){
-  const base=targetRange();let pool=base;
-  if(kind==='weak')pool=base.filter(w=>weakScore(w)>0).sort((a,b)=>weakScore(b)-weakScore(a));
-  if(kind==='unseen')pool=base.filter(w=>!wasAttempted(w));
-  if(kind==='due')pool=base.filter(w=>S.words[w.w]&&S.words[w.w].due&&S.words[w.w].due<=now());
-  if(!pool.length&&kind==='due')pool=base.filter(w=>weakScore(w)>0);
-  if(!pool.length&&kind==='weak')pool=base.filter(w=>!S.words[w.w]);
-  // 未挑戦モードだけは、0語になっても全単語へ戻さない。
-  if(!pool.length&&kind!=='unseen')pool=base;
-  return pool;
+  const base=targetRange();
+  if(kind==='unseen')return base.filter(w=>!wasAttempted(w));
+  if(kind==='weak')return sortReviewWords(base.filter(w=>weakScore(w)>0),'weak');
+  if(kind==='due')return base.filter(w=>S.words[w.w]&&S.words[w.w].due&&S.words[w.w].due<=now()).sort((a,b)=>S.words[a.w].due-S.words[b.w].due);
+  return base;
 }
 function speak(w,rate){
   if(!('speechSynthesis' in window)){alert('このブラウザでは音声読み上げを利用できません。');return;}
@@ -209,7 +215,7 @@ function showTab(tab){
 }
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 function updateHeader(){
-  const seen=WORDS.filter(w=>S.words[w.w]&&((S.words[w.w].correct||0)+(S.words[w.w].wrong||0)>0)).length;
+  const seen=WORDS.filter(w=>wasAttempted(w)).length;
   const mastered=WORDS.filter(w=>S.words[w.w]&&S.words[w.w].level>=3).length;
   const due=WORDS.filter(w=>S.words[w.w]&&((S.words[w.w].correct||0)+(S.words[w.w].wrong||0)>0)&&S.words[w.w].due&&S.words[w.w].due<=now()).length;
   $('seenCount').textContent=seen;$('accuracy').textContent=S.attempts?Math.round(S.correct/S.attempts*100)+'%':'0%';
@@ -219,8 +225,9 @@ function updateMemo(){const d=current?wordRecord(current.w):null;$('wordMemo').v
 function setQuestion(w){
   const shouldFocus=studyQuestionInitialized;
   studyQuestionInitialized=true;
-  current=w;phase='asking';$('qNo').textContent=w.n;$('qWord').textContent=w.w;$('qKana').textContent='カタカナ発音（目安）：'+KANA[w.n-1];$('qWord').classList.remove('hidden-word');
-  $('qStatus').textContent=$('pool').selectedOptions[0].textContent;
+  current=w;phase='asking';if(!reviewMode)studySeenThisRun.add(w.w);
+  $('qNo').textContent=w.n;$('qWord').textContent=w.w;$('qKana').textContent='カタカナ発音（目安）：'+KANA[w.n-1];$('qWord').classList.remove('hidden-word');
+  $('qStatus').textContent=reviewMode?('復習 '+(reviewQueueIndex+1)+' / '+reviewQueue.length):$('pool').selectedOptions[0].textContent;
   $('meaningInput').value='';$('meaningInput').disabled=false;$('checkMeaning').disabled=false;
   $('showMeaning').disabled=false;$('markGood').disabled=false;$('markBad').disabled=false;
   $('meaningReveal').classList.add('hidden');$('selfRate').classList.add('hidden');$('nextQuestion').classList.add('hidden');
@@ -229,22 +236,33 @@ function setQuestion(w){
   if(shouldFocus)$('meaningInput').focus();
   if($('autoPlay')&&$('autoPlay').checked)speak(w.w,.9);
 }
-function showNoUnseen(){
+function showNoPool(kind,exhausted){
   current=null;phase='finished';
-  $('qNo').textContent='—';$('qWord').textContent='未挑戦の単語はありません';$('qKana').textContent='';
-  $('qStatus').textContent='未挑戦単語 0語';
+  const messages={
+    unseen:'この範囲の未挑戦単語はすべて終わったよ。範囲を広げるか、別の出題モードに切り替えてね。',
+    weak:exhausted?'この回の苦手単語を一巡したよ。出題モードを選び直すと、もう一度最初から練習できるよ。':'苦手として記録された単語はまだないよ。間違えた単語ができると、ここに出題されるよ。',
+    due:'今すぐ復習する予定の単語はないよ。復習時期が来ると、ここに出題されるよ。'
+  };
+  $('qNo').textContent='—';$('qWord').textContent=kind==='unseen'?'未挑戦の単語はありません':kind==='weak'?'苦手な単語はありません':'復習予定の単語はありません';$('qKana').textContent='';
+  $('qStatus').textContent=kind==='unseen'?'未挑戦 0語':kind==='weak'?'苦手 0語':'復習対象 0語';
   $('meaningInput').value='';$('meaningInput').disabled=true;$('checkMeaning').disabled=true;
   $('showMeaning').disabled=true;$('markGood').disabled=true;$('markBad').disabled=true;
   $('meaningReveal').classList.add('hidden');$('selfRate').classList.add('hidden');$('nextQuestion').classList.add('hidden');
-  $('message').textContent='この範囲の未挑戦単語はすべて終わったよ。範囲を広げるか、「全単語からランダム」に切り替えてね。';
+  $('message').textContent=messages[kind]||'この条件に合う単語はありません。';
   $('message').className='message good';$('wordMemo').value='';
 }
+function showNoUnseen(){showNoPool('unseen',false);}
+function resetStudyRun(){reviewMode=false;reviewQueue=[];reviewQueueIndex=0;studySeenThisRun.clear();}
 function newQuestion(forced){
   const kind=$('pool').value;let w=forced;
   if(!w){
-    const pool=poolFor(kind);
-    if(!pool.length&&kind==='unseen'){showNoUnseen();return;}
-    w=pool[Math.floor(Math.random()*pool.length)];
+    let pool=poolFor(kind);
+    if(!pool.length){showNoPool(kind,false);return;}
+    if(kind==='weak'||kind==='due'){
+      pool=pool.filter(x=>!studySeenThisRun.has(x.w));
+      if(!pool.length){showNoPool(kind,true);return;}
+      w=pool[0];
+    }else w=pool[Math.floor(Math.random()*pool.length)];
   }
   if(w)setQuestion(w);
 }
@@ -255,19 +273,21 @@ function revealMeaning(){
   $('message').textContent='意味を確認して、自分の記憶に合わせて判定しよう。';
 }
 function finish(w,ok,kind){
-  const d=wordRecord(w.w);S.attempts++;sessionCount++;$('sessionCount').textContent='この回 '+sessionCount+'問';
+  const d=wordRecord(w.w);S.attempts++;d.attempts++;sessionCount++;$('sessionCount').textContent='この回 '+sessionCount+'問';
   if(ok){
-    S.correct++;S.streak++;S.points+=10;d.correct++;d.level=Math.min(5,d.level+1);d.due=now()+intervals[d.level]*86400000;
-    $('message').textContent='✅ 正解！ 次の復習は '+intervals[d.level]+'日後が目安。';$('message').className='message good';
+    S.correct++;S.streak++;S.points+=10;d.correct++;d.wrongStreak=0;d.lastCorrect=now();d.level=Math.min(5,d.level+1);d.due=now()+intervals[d.level]*86400000;
   }else{
-    S.streak=0;d.wrong++;d.level=0;d.due=now()+6*60*60*1000;
-    $('message').textContent='📌 今回は復習に回そう。正解：'+(kind==='spell'?w.w:w.m);$('message').className='message bad';
+    S.streak=0;d.wrong++;d.wrongStreak++;d.lastWrong=now();d.level=0;d.due=now()+6*60*60*1000;
   }
   d.last=now();
   const entry={word:w.w,meaning:w.m,ok:!!ok,time:now(),kind:kind||'meaning'};
   S.history.unshift(entry);S.history=S.history.slice(0,60);
-  $('nextQuestion').classList.remove('hidden');$('meaningInput').disabled=true;$('checkMeaning').disabled=true;
-  $('markGood').disabled=true;$('markBad').disabled=true;
+  if(kind==='meaning'){
+    $('message').textContent=ok?'✅ 正解！ 次の復習は '+intervals[d.level]+'日後が目安。':'📌 今回は復習に回そう。正解：'+w.m;
+    $('message').className=ok?'message good':'message bad';
+    $('nextQuestion').classList.remove('hidden');$('meaningInput').disabled=true;$('checkMeaning').disabled=true;
+    $('markGood').disabled=true;$('markBad').disabled=true;
+  }
   save();updateHeader();
 }
 $('checkMeaning').onclick=()=>{
@@ -284,25 +304,47 @@ $('checkMeaning').onclick=()=>{
 $('showMeaning').onclick=revealMeaning;
 $('markGood').onclick=()=>{if(current&&phase==='revealed'){finish(current,true,'meaning');$('markBad').disabled=true;$('meaningInput').blur();}};
 $('markBad').onclick=()=>{if(current&&phase==='revealed'){finish(current,false,'meaning');$('markGood').disabled=true;$('meaningInput').blur();}};
-$('nextQuestion').onclick=()=>{$('showMeaning').disabled=false;$('markGood').disabled=false;$('markBad').disabled=false;newQuestion();};
+function showReviewFinished(){
+  reviewMode=false;reviewQueue=[];reviewQueueIndex=0;current=null;phase='finished';
+  $('qNo').textContent='—';$('qWord').textContent='復習リストを一巡したよ';$('qKana').textContent='';$('qStatus').textContent='復習完了';
+  $('meaningInput').value='';$('meaningInput').disabled=true;$('checkMeaning').disabled=true;$('showMeaning').disabled=true;$('markGood').disabled=true;$('markBad').disabled=true;
+  $('meaningReveal').classList.add('hidden');$('selfRate').classList.add('hidden');$('nextQuestion').classList.add('hidden');
+  $('message').textContent='今回の復習対象はすべて確認できたよ。復習タブから最新の対象を確認できるよ。';$('message').className='message good';$('wordMemo').value='';
+}
+function advanceStudy(){
+  if(reviewMode){
+    reviewQueueIndex++;
+    if(reviewQueueIndex>=reviewQueue.length){showReviewFinished();return;}
+    setQuestion(reviewQueue[reviewQueueIndex]);return;
+  }
+  newQuestion();
+}
+$('nextQuestion').onclick=advanceStudy;
 $('meaningInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('checkMeaning').click();});
 $('playNormal').onclick=()=>current&&speak(current.w,.92);$('playSlow').onclick=()=>current&&speak(current.w,.68);
-$('applyRange').onclick=()=>{targetRange();newQuestion();};
-$('pool').onchange=()=>newQuestion();
+$('applyRange').onclick=()=>{targetRange();resetStudyRun();newQuestion();};
+$('pool').onchange=()=>{resetStudyRun();newQuestion();};
 $('saveMemo').onclick=()=>{if(!current)return;wordRecord(current.w).note=$('wordMemo').value;save();$('saveMemo').textContent='保存したよ ✓';setTimeout(()=>{$('saveMemo').textContent='メモを保存';},1200);};
 
+function showListenEmpty(kind,exhausted){
+  listenCurrent=null;listenPhase='finished';$('lNo').textContent='—';
+  $('listenWord').textContent=kind==='unseen'?'未挑戦の単語はありません':kind==='weak'?'苦手な単語はありません':'単語がありません';
+  $('listenKana').textContent='';$('listenKana').classList.add('hidden');
+  $('spellingInput').value='';$('spellingInput').disabled=true;$('checkSpelling').disabled=true;$('revealSpelling').disabled=true;
+  $('spellingReveal').classList.add('hidden');$('spellingRate').classList.add('hidden');$('nextListen').classList.add('hidden');
+  $('spellGood').disabled=true;$('spellBad').disabled=true;
+  const msg=kind==='unseen'?'未挑戦単語はすべて終わったよ。意味当て・赤シートで判定した単語も共通で除外されるよ。':kind==='weak'?(exhausted?'この回の苦手単語を一巡したよ。':'苦手として記録された単語はまだないよ。'):'この条件に合う単語はありません。';
+  $('listenMessage').textContent=msg;$('listenMessage').className='message good';
+}
 function chooseListen(autoSpeak){
-  const pool=poolFor($('listenPool').value);
-  if(!pool.length&&$('listenPool').value==='unseen'){
-    listenCurrent=null;listenPhase='finished';$('lNo').textContent='—';
-    $('listenWord').textContent='未挑戦の単語はありません';$('listenKana').textContent='';$('listenKana').classList.add('hidden');
-    $('spellingInput').value='';$('spellingInput').disabled=true;$('checkSpelling').disabled=true;$('revealSpelling').disabled=true;
-    $('spellingReveal').classList.add('hidden');$('spellingRate').classList.add('hidden');$('nextListen').classList.add('hidden');
-    $('spellGood').disabled=true;$('spellBad').disabled=true;
-    $('listenMessage').textContent='未挑戦単語はすべて終わったよ。意味当て・赤シートで判定した単語も共通で除外されるよ。';
-    $('listenMessage').className='message good';return;
-  }
-  listenCurrent=pool[Math.floor(Math.random()*pool.length)];
+  const kind=$('listenPool').value;
+  let pool=poolFor(kind);
+  if(!pool.length){showListenEmpty(kind,false);return;}
+  if(kind==='weak'){
+    pool=pool.filter(w=>!listenSeenThisRun.has(w.w));
+    if(!pool.length){showListenEmpty(kind,true);return;}
+    listenCurrent=pool[0];listenSeenThisRun.add(listenCurrent.w);
+  }else listenCurrent=pool[Math.floor(Math.random()*pool.length)];
   if(!listenCurrent)return;
   listenPhase='asking';$('lNo').textContent=listenCurrent.n;$('listenWord').textContent='？？？';$('listenKana').textContent='';$('listenKana').classList.add('hidden');$('listenWord').classList.remove('hidden-word');
   $('spellingInput').value='';$('spellingInput').disabled=false;$('checkSpelling').disabled=false;$('revealSpelling').disabled=false;
@@ -329,18 +371,27 @@ $('checkSpelling').onclick=()=>{
 $('spellGood').onclick=()=>{if(listenCurrent&&listenPhase==='revealed'){finish(listenCurrent,true,'spell');$('spellBad').disabled=true;$('listenWord').textContent=listenCurrent.w;$('spellingInput').disabled=true;$('checkSpelling').disabled=true;$('nextListen').classList.remove('hidden');$('listenMessage').textContent='✅ 正解として記録したよ。';$('listenMessage').className='message good';}};
 $('spellBad').onclick=()=>{if(listenCurrent&&listenPhase==='revealed'){finish(listenCurrent,false,'spell');$('spellGood').disabled=true;$('listenWord').textContent=listenCurrent.w;$('spellingInput').disabled=true;$('checkSpelling').disabled=true;$('nextListen').classList.remove('hidden');$('listenMessage').textContent='📌 復習する単語として記録したよ。';$('listenMessage').className='message bad';}};
 $('nextListen').onclick=()=>chooseListen(true);$('spellingInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('checkSpelling').click();});
+$('listenPool').onchange=()=>{listenSeenThisRun.clear();chooseListen(true);};
 
 function loadCardDeck(){
   const a=Math.max(1,Math.min(1400,Number($('cardStart').value)||1));
   const b=Math.max(a,Math.min(1400,Number($('cardEnd').value)||1400));
+  const kind=$('cardPool').value;
   cardPool=WORDS.filter(w=>w.n>=a&&w.n<=b);
-  if($('cardPool').value==='weak')cardPool.sort((x,y)=>weakScore(y)-weakScore(x));
-  else if($('cardPool').value==='random')cardPool.sort(()=>Math.random()-.5);
+  if(kind==='unseen')cardPool=cardPool.filter(w=>!wasAttempted(w));
+  if(kind==='weak')cardPool=sortReviewWords(cardPool.filter(w=>weakScore(w)>0),'weak');
+  else if(kind==='random')cardPool.sort(()=>Math.random()-.5);
+  else if(kind==='number')cardPool.sort((x,y)=>x.n-y.n);
   cardPos=0;renderCard();
 }
 function renderCard(){
-  if(!cardPool.length){$('cardWord').textContent='単語がありません';return;}
-  const w=cardPool[cardPos%cardPool.length];cardRated=false;$('cardKnow').disabled=false;$('cardUnclear').disabled=false;$('cardMessage').textContent='';$('cNo').textContent=w.n;$('cardPosition').textContent=(cardPos+1)+' / '+cardPool.length;
+  const kind=$('cardPool').value;
+  if(!cardPool.length||cardPos>=cardPool.length){
+    const msg=!cardPool.length?(kind==='unseen'?'この範囲の未挑戦単語はありません。':kind==='weak'?'苦手として記録された単語はありません。':'この範囲に表示できる単語はありません。'):'この単語セットを一巡したよ。もう一度見るときは「表示」を押してね。';
+    $('cNo').textContent='—';$('cardPosition').textContent=cardPool.length+' / '+cardPool.length;$('cardWord').textContent=cardPos>=cardPool.length&&cardPool.length?'一巡完了':'単語がありません';$('cardKana').textContent='';$('cardMeaning').classList.add('hidden');$('cardMessage').textContent=msg;$('cardMessage').className='message good';
+    $('cardKnow').disabled=true;$('cardUnclear').disabled=true;$('cardNext').disabled=true;$('toggleCardMeaning').disabled=true;return;
+  }
+  const w=cardPool[cardPos];cardRated=false;$('cardKnow').disabled=false;$('cardUnclear').disabled=false;$('cardNext').disabled=false;$('toggleCardMeaning').disabled=false;$('cardMessage').textContent='';$('cardPosition').textContent=(cardPos+1)+' / '+cardPool.length;$('cNo').textContent=w.n;
   $('cardWord').textContent=w.w;$('cardKana').textContent='カタカナ発音（目安）：'+KANA[w.n-1];$('cardWord').style.fontSize='clamp('+(30*cardFont)+'px, '+(7*cardFont)+'vw, '+(55*cardFont)+'px)';
   $('cardMeaning').textContent=w.m;$('cardMeaning').classList.add('hidden');$('toggleCardMeaning').textContent='日本語を表示';
   $('cardKnow').onclick=()=>{if(cardRated)return;cardRated=true;finish(w,true,'card');$('cardKnow').disabled=true;$('cardUnclear').disabled=true;$('cardMessage').textContent='✅「思い出せた」として記録したよ。次の単語へ進めるよ。';$('cardMessage').className='message good';};
@@ -373,27 +424,66 @@ window.addEventListener('keydown',e=>{
   }
 },true);
 
+function reviewCandidates(){
+  return WORDS.filter(w=>{
+    if(!wasAttempted(w)||!S.words[w.w])return false;
+    const d=S.words[w.w];
+    return (d.due&&d.due<=now())||weakScore(w)>0;
+  });
+}
+function sortReviewWords(words,mode){
+  const list=words.slice();
+  list.sort((a,b)=>{
+    const da=wordRecord(a.w),db=wordRecord(b.w);
+    if(mode==='number')return a.n-b.n;
+    if(mode==='due')return (da.due||Infinity)-(db.due||Infinity)||weakScore(b)-weakScore(a)||a.n-b.n;
+    if(mode==='weak')return weakScore(b)-weakScore(a)||(db.lastWrong||0)-(da.lastWrong||0)||a.n-b.n;
+    const aDue=da.due>0&&da.due<=now(),bDue=db.due>0&&db.due<=now();
+    if(aDue!==bDue)return aDue?-1:1;
+    if(aDue&&bDue&&da.due!==db.due)return da.due-db.due;
+    const scoreDiff=weakScore(b)-weakScore(a);if(scoreDiff)return scoreDiff;
+    if(da.wrongStreak!==db.wrongStreak)return db.wrongStreak-da.wrongStreak;
+    if((da.due||Infinity)!==(db.due||Infinity))return (da.due||Infinity)-(db.due||Infinity);
+    return (db.lastWrong||0)-(da.lastWrong||0)||a.n-b.n;
+  });
+  return list;
+}
+function dueLabel(d){
+  if(!d.due)return '復習予定なし';
+  const diff=d.due-now();
+  if(diff<=0){const hours=Math.floor(-diff/3600000);return hours<24?'期限超過 '+hours+'時間':'期限超過 '+Math.floor(hours/24)+'日';}
+  const hours=Math.ceil(diff/3600000);return hours<24?'あと '+hours+'時間':'あと '+Math.ceil(hours/24)+'日';
+}
+function showNoReview(){
+  reviewMode=false;reviewQueue=[];reviewQueueIndex=0;current=null;phase='finished';
+  $('qNo').textContent='—';$('qWord').textContent='復習対象の単語はありません';$('qKana').textContent='';$('qStatus').textContent='復習対象 0語';
+  $('meaningInput').value='';$('meaningInput').disabled=true;$('checkMeaning').disabled=true;$('showMeaning').disabled=true;$('markGood').disabled=true;$('markBad').disabled=true;
+  $('meaningReveal').classList.add('hidden');$('selfRate').classList.add('hidden');$('nextQuestion').classList.add('hidden');
+  $('message').textContent='今は復習期限が来た単語も、苦手として残っている単語もないよ。';$('message').className='message good';$('wordMemo').value='';
+}
+function startReviewQueue(firstWord){
+  reviewQueue=sortReviewWords(reviewCandidates(),$('reviewSort').value);
+  if(firstWord){const index=reviewQueue.findIndex(w=>w.w===firstWord.w);if(index>0)reviewQueue.unshift(reviewQueue.splice(index,1)[0]);}
+  reviewQueueIndex=0;reviewMode=true;showTab('study');
+  if(!reviewQueue.length){showNoReview();return;}
+  setQuestion(reviewQueue[0]);
+}
 function drawReview(){
-  const due=WORDS.filter(w=>S.words[w.w]&&S.words[w.w].due&&S.words[w.w].due<=now());
-  const weak=WORDS.filter(w=>weakScore(w)>0);
+  const due=WORDS.filter(w=>wasAttempted(w)&&S.words[w.w]&&S.words[w.w].due&&S.words[w.w].due<=now());
+  const weak=WORDS.filter(w=>wasAttempted(w)&&weakScore(w)>0);
   $('reviewDue').textContent=due.length;$('reviewWeak').textContent=weak.length;
-  let rows=weak.slice();
-  const sort=$('reviewSort').value;
-  if(sort==='due')rows.sort((a,b)=>(S.words[a.w].due||Infinity)-(S.words[b.w].due||Infinity));
-  else if(sort==='number')rows.sort((a,b)=>a.n-b.n);
-  else rows.sort((a,b)=>weakScore(b)-weakScore(a));
-  rows=rows.slice(0,100);
+  const rows=sortReviewWords(reviewCandidates(),$('reviewSort').value);
   $('reviewList').innerHTML=rows.length?rows.map(w=>{
-    const d=wordRecord(w.w);const label=d.due&&d.due<=now()?'復習時期':('苦手度 '+weakScore(w));
-    return '<div class="word-row"><div class="left"><strong>'+escapeHtml(w.w)+'</strong><span class="tag">No. '+w.n+'</span><small class="pronunciation-inline">発音目安：'+escapeHtml(KANA[w.n-1])+'</small><small>'+escapeHtml(w.m)+' · 正解 '+d.correct+' / 間違い '+d.wrong+' · '+label+'</small></div><button data-review="'+w.n+'">この単語を練習</button></div>';
-  }).join(''):'<div class="empty">まだ苦手として記録された単語はないよ。意味を当てる練習を続けると、ここに復習リストができる。</div>';
-  document.querySelectorAll('[data-review]').forEach(b=>b.onclick=()=>{const w=WORDS.find(x=>x.n===Number(b.dataset.review));showTab('study');$('pool').value='weak';newQuestion(w);});
+    const d=wordRecord(w.w);const label=d.due&&d.due<=now()?'復習期限到来':'苦手・再確認';
+    return '<div class="word-row"><div class="left"><strong>'+escapeHtml(w.w)+'</strong><span class="tag">No. '+w.n+'</span><small class="pronunciation-inline">発音目安：'+escapeHtml(KANA[w.n-1])+'</small><small>'+escapeHtml(w.m)+' · 正解 '+d.correct+' / 間違い '+d.wrong+' · 連続ミス '+d.wrongStreak+'回 · '+label+'（'+dueLabel(d)+'）</small></div><button data-review="'+w.n+'">この単語から復習</button></div>';
+  }).join(''):'<div class="empty">今は復習対象がないよ。間違えた単語や復習期限が来た単語は、ここに追加されるよ。</div>';
+  document.querySelectorAll('[data-review]').forEach(b=>b.onclick=()=>{const w=WORDS.find(x=>x.n===Number(b.dataset.review));if(w)startReviewQueue(w);});
 }
 $('reviewSort').onchange=drawReview;
-$('reviewStart').onclick=()=>{showTab('study');$('pool').value='weak';newQuestion();};
+$('reviewStart').onclick=()=>startReviewQueue();
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function drawRecords(){
-  const seen=WORDS.filter(w=>S.words[w.w]&&((S.words[w.w].correct||0)+(S.words[w.w].wrong||0)>0)).length;const mastered=WORDS.filter(w=>S.words[w.w]&&S.words[w.w].level>=3).length;const weak=WORDS.filter(w=>weakScore(w)>0).length;
+  const seen=WORDS.filter(w=>wasAttempted(w)).length;const mastered=WORDS.filter(w=>S.words[w.w]&&S.words[w.w].level>=3).length;const weak=WORDS.filter(w=>weakScore(w)>0).length;
   $('rAttempts').textContent=S.attempts;$('rStreak').textContent=S.streak;$('rWeak').textContent=weak;$('rPoints').textContent=S.points;
   $('seenPercent').textContent=Math.round(seen/1400*100)+'%';$('seenBar').style.width=(seen/1400*100)+'%';
   $('masteredPercent').textContent=Math.round(mastered/1400*100)+'%';$('masteredBar').style.width=(mastered/1400*100)+'%';
@@ -411,8 +501,6 @@ $('importDataFile').onchange=async e=>{
   }catch(err){alert('読み込みに失敗しました。TARGET 1400のバックアップファイルを選んでください。');}
   e.target.value='';
 };
-$('pool').onchange=()=>newQuestion();
-$('listenPool').onchange=()=>chooseListen(true);
 $('rangeStart').onchange=targetRange;$('rangeEnd').onchange=targetRange;
 
 updateHeader();
